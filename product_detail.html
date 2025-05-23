@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-TF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 900px; /* Increased width for more fields */
+            margin: 0 auto;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, bottom 0.3s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .toast.show { opacity: 1; bottom: 30px; }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.info { background-color: #17a2b8; }
+
+        /* Input styling is applied directly to elements using Tailwind classes */
+        input[readonly], textarea[readonly] {
+            background-color: #e9ecef; /* Light gray for readonly fields */
+            cursor: not-allowed;
+        }
+        textarea {
+            min-height: 80px;
+        }
+        .grid-cols-form {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8em;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body class="py-10">
+    <div class="container bg-white p-6 sm:p-8 rounded-xl shadow-xl">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <h1 id="pageTitle" class="text-2xl sm:text-3xl font-bold text-gray-800">Product Details</h1>
+            <a href="/inventory.html" class="text-indigo-600 hover:text-indigo-800 text-sm">&larr; Back to Inventory</a>
+        </div>
+
+        <div id="loader" class="loader"></div>
+        <form id="productForm" class="hidden space-y-6">
+            
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Identifiers & Core Info</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
+                    <div><label for="upc" class="block text-sm font-medium text-gray-700 mb-1">UPC</label><input type="text" id="upc" name="upc" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="sku" class="block text-sm font-medium text-gray-700 mb-1">SKU</label><input type="text" id="sku" name="sku" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="code_type" class="block text-sm font-medium text-gray-700 mb-1">Code Type</label><input type="text" id="code_type" name="code_type" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="quantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label><input type="number" id="quantity" name="quantity" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="title" class="block text-sm font-medium text-gray-700 mb-1">Current Title</label><input type="text" id="title" name="title" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="brand" class="block text-sm font-medium text-gray-700 mb-1">Brand</label><input type="text" id="brand" name="brand" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Pricing & Condition</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
+                    <div><label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price</label><input type="number" step="0.01" id="price" name="price" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="regular_price" class="block text-sm font-medium text-gray-700 mb-1">Regular Price</label><input type="number" step="0.01" id="regular_price" name="regular_price" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="sale_price" class="block text-sm font-medium text-gray-700 mb-1">Sale Price</label><input type="number" step="0.01" id="sale_price" name="sale_price" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label><input type="text" id="currency" name="currency" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="condition" class="block text-sm font-medium text-gray-700 mb-1">Condition</label><input type="text" id="condition" name="condition" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Descriptions</legend>
+                <div class="space-y-4 mt-2">
+                    <div><label for="short_description" class="block text-sm font-medium text-gray-700 mb-1">Short Description</label><textarea id="short_description" name="short_description" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea></div>
+                    <div><label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea id="description" name="description" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea></div>
+                    <div><label for="long_description" class="block text-sm font-medium text-gray-700 mb-1">Long Description</label><textarea id="long_description" name="long_description" rows="5" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">AI Enhanced Content</legend>
+                 <div class="space-y-4 mt-2">
+                    <div><label for="ai_optimized_title" class="block text-sm font-medium text-gray-700 mb-1">AI Optimized Title</label><input type="text" id="ai_optimized_title" name="ai_optimized_title" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="ai_optimized_description" class="block text-sm font-medium text-gray-700 mb-1">AI Optimized Description</label><textarea id="ai_optimized_description" name="ai_optimized_description" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea></div>
+                    <div><label for="ai_seo_keywords" class="block text-sm font-medium text-gray-700 mb-1">AI SEO Keywords (comma-separated)</label><input type="text" id="ai_seo_keywords" name="ai_seo_keywords" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="ai_sales_summary" class="block text-sm font-medium text-gray-700 mb-1">AI Sales Summary</label><textarea id="ai_sales_summary" name="ai_sales_summary" rows="2" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea></div>
+                    <div><label for="ai_key_features" class="block text-sm font-medium text-gray-700 mb-1">AI Key Features (pipe | separated)</label><input type="text" id="ai_key_features" name="ai_key_features" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                    <div><label for="ai_unique_selling_points" class="block text-sm font-medium text-gray-700 mb-1">AI Unique Selling Points (pipe | separated)</label><input type="text" id="ai_unique_selling_points" name="ai_unique_selling_points" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></div>
+                </div>
+            </fieldset>
+            
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Status & Timestamps</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
+                    <div><label for="enrichment_status" class="block text-sm font-medium text-gray-700 mb-1">Enrichment Status</label><input type="text" id="enrichment_status" name="enrichment_status" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                    <div><label for="last_scanned_at" class="block text-sm font-medium text-gray-700 mb-1">Last Scanned At</label><input type="text" id="last_scanned_at" name="last_scanned_at" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                    <div><label for="last_enriched_at" class="block text-sm font-medium text-gray-700 mb-1">Last Enriched At</label><input type="text" id="last_enriched_at" name="last_enriched_at" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                    <div><label for="created_at" class="block text-sm font-medium text-gray-700 mb-1">Created At</label><input type="text" id="created_at" name="created_at" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                    <div><label for="ai_processing_error" class="block text-sm font-medium text-gray-700 mb-1">AI Processing Error</label><input type="text" id="ai_processing_error" name="ai_processing_error" readonly class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Raw API Payloads (Read-only)</legend>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mt-2">
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">Amazon Payload:</label><pre id="raw_amazon_payload">N/A</pre></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">eBay Payload:</label><pre id="raw_ebay_payload">N/A</pre></div>
+                    <div><label class="block text-sm font-medium text-gray-700 mb-1">UPCitemDB Payload:</label><pre id="raw_upcitemdb_payload">N/A</pre></div>
+                </div>
+            </fieldset>
+
+
+            <div class="pt-5">
+                <button type="submit" id="saveChangesButton"
+                        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+        <p id="productNotFoundMessage" class="text-center text-red-500 font-semibold mt-8 hidden">Product not found.</p>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const productForm = document.getElementById('productForm');
+        const loader = document.getElementById('loader'); // Single declaration of 'loader'
+        const toast = document.getElementById('toast');
+        const pageTitle = document.getElementById('pageTitle');
+        const productNotFoundMessage = document.getElementById('productNotFoundMessage');
+        
+        const formFieldIds = [ 
+            "upc", "sku", "code_type", "quantity", "title", "brand", "condition", 
+            "price", "regular_price", "sale_price", "currency",
+            "short_description", "description", "long_description",
+            "ai_optimized_title", "ai_optimized_description", "ai_seo_keywords", 
+            "ai_sales_summary", "ai_key_features", "ai_unique_selling_points",
+            "enrichment_status", "last_scanned_at", "last_enriched_at", "created_at",
+            "ai_processing_error",
+            "raw_amazon_payload", "raw_ebay_payload", "raw_upcitemdb_payload"
+        ];
+        const formElements = {};
+        formFieldIds.forEach(id => formElements[id] = document.getElementById(id));
+
+
+        // --- CONFIGURATION ---
+        const N8N_GET_PRODUCT_DETAILS_URL = 'https://n8n.by1.net/webhook/get-single-product-details'; 
+        const N8N_UPDATE_PRODUCT_INFO_URL = 'https://n8n.by1.net/webhook/edit-update'; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const upc = urlParams.get('upc');
+
+            if (upc) {
+                pageTitle.textContent = `Details for UPC: ${escapeHtml(upc)}`;
+                fetchProductDetails(upc);
+            } else {
+                pageTitle.textContent = 'No Product Specified';
+                loader.classList.add('hidden');
+                productNotFoundMessage.textContent = 'No UPC provided in the URL.';
+                productNotFoundMessage.classList.remove('hidden');
+            }
+        });
+
+        async function fetchProductDetails(upc) {
+            if (N8N_GET_PRODUCT_DETAILS_URL === 'YOUR_N8N_GET_PRODUCT_DETAILS_WEBHOOK_URL_HERE') { 
+                showToast('Get Product Details Webhook URL not configured in script.', 'error');
+                loader.classList.add('hidden');
+                productNotFoundMessage.textContent = 'Configuration error: Get Product Details webhook URL is not set.';
+                productNotFoundMessage.classList.remove('hidden');
+                return;
+            }
+            
+            loader.classList.remove('hidden');
+            productForm.classList.add('hidden');
+            productNotFoundMessage.classList.add('hidden');
+
+            try {
+                console.log(`Fetching details for UPC: ${upc} from ${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`); // Corrected typo
+                const response = await fetch(`${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("Error fetching product details:", response.status, errorText);
+                    if (response.status === 404) {
+                        productNotFoundMessage.textContent = `Product with UPC ${escapeHtml(upc)} not found. Ensure workflow is active and path is correct.`;
+                    } else {
+                        productNotFoundMessage.textContent = `Error fetching product: ${response.statusText}. Check console.`;
+                    }
+                    productNotFoundMessage.classList.remove('hidden');
+                    showToast(`Error fetching product: ${response.statusText}`, 'error');
+                    return;
+                }
+                const productDataArray = await response.json();
+                const productData = Array.isArray(productDataArray) && productDataArray.length > 0 ? productDataArray[0] : productDataArray;
+
+                if (productData && typeof productData === 'object' && Object.keys(productData).length > 0) {
+                    populateForm(productData);
+                    productForm.classList.remove('hidden');
+                } else {
+                    productNotFoundMessage.textContent = `Product with UPC ${escapeHtml(upc)} not found or data is empty.`;
+                    console.warn("Product data not found or empty for UPC:", upc, "Response:", productDataArray);
+                    productNotFoundMessage.classList.remove('hidden');
+                }
+
+            } catch (err) {
+                console.error('Fetch product details script/network error:', err);
+                showToast('Failed to fetch product details. Check console for network/CORS errors.', 'error');
+                productNotFoundMessage.textContent = 'Error loading product data. Check console and ensure n8n workflow is active & CORS configured.';
+                productNotFoundMessage.classList.remove('hidden');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function formatTimestamp(isoString) {
+            if (!isoString) return '';
+            try {
+                if (String(isoString).includes(',')) return isoString; 
+                return new Date(isoString).toLocaleString();
+            } catch (e) {
+                return isoString; 
+            }
+        }
+
+        function populateForm(data) {
+            // Apply Tailwind classes to labels dynamically if not already set in HTML
+            document.querySelectorAll('label').forEach(label => {
+                if (!label.classList.contains('block')) { // Basic check
+                    label.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'mb-1');
+                }
+            });
+            
+            formElements.upc.value = data.upc || '';
+            formElements.sku.value = data.sku || '';
+            formElements.code_type.value = data.code_type || '';
+            formElements.quantity.value = data.quantity !== undefined && data.quantity !== null ? data.quantity : '';
+            formElements.title.value = data.title || '';
+            formElements.brand.value = data.brand || '';
+            formElements.condition.value = data.condition || '';
+            formElements.price.value = data.price !== undefined && data.price !== null ? data.price : '';
+            formElements.regular_price.value = data.regular_price !== undefined && data.regular_price !== null ? data.regular_price : '';
+            formElements.sale_price.value = data.sale_price !== undefined && data.sale_price !== null ? data.sale_price : '';
+            formElements.currency.value = data.currency || 'USD';
+            
+            formElements.short_description.value = data.short_description || '';
+            formElements.description.value = data.description || '';
+            formElements.long_description.value = data.long_description || '';
+
+            formElements.ai_optimized_title.value = data.ai_optimized_title || '';
+            formElements.ai_optimized_description.value = data.ai_optimized_description || '';
+            formElements.ai_seo_keywords.value = Array.isArray(data.ai_seo_keywords) ? data.ai_seo_keywords.join(', ') : (data.ai_seo_keywords || '');
+            formElements.ai_sales_summary.value = data.ai_sales_summary || '';
+            formElements.ai_key_features.value = Array.isArray(data.ai_key_features) ? data.ai_key_features.join(' | ') : (data.ai_key_features || '');
+            formElements.ai_unique_selling_points.value = Array.isArray(data.ai_unique_selling_points) ? data.ai_unique_selling_points.join(' | ') : (data.ai_unique_selling_points || '');
+
+
+            formElements.enrichment_status.value = data.enrichment_status || '';
+            formElements.last_scanned_at.value = formatTimestamp(data.last_scanned_at);
+            formElements.last_enriched_at.value = formatTimestamp(data.last_enriched_at);
+            formElements.created_at.value = formatTimestamp(data.created_at);
+            formElements.ai_processing_error.value = data.ai_processing_error || '';
+
+            formElements.raw_amazon_payload.textContent = data.raw_amazon_payload ? JSON.stringify(data.raw_amazon_payload, null, 2) : 'N/A';
+            formElements.raw_ebay_payload.textContent = data.raw_ebay_payload ? JSON.stringify(data.raw_ebay_payload, null, 2) : 'N/A';
+            formElements.raw_upcitemdb_payload.textContent = data.raw_upcitemdb_payload ? JSON.stringify(data.raw_upcitemdb_payload, null, 2) : 'N/A';
+        }
+
+        productForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const saveButton = document.getElementById('saveChangesButton');
+            const originalButtonText = saveButton.textContent;
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving...';
+            saveButton.classList.add('opacity-50');
+
+            if (N8N_UPDATE_PRODUCT_INFO_URL === 'YOUR_N8N_UPDATE_PRODUCT_INFO_WEBHOOK_URL_HERE') { 
+                showToast('Update Product Webhook URL not configured.', 'error');
+                saveButton.disabled = false;
+                saveButton.textContent = originalButtonText;
+                saveButton.classList.remove('opacity-50');
+                return;
+            }
+
+            const productDataToUpdate = {};
+            formFieldIds.forEach(id => {
+                const element = formElements[id];
+                if (element && element.name) { 
+                    if (element.tagName === 'PRE') {
+                        // Skip raw payload fields for update
+                    } else if (element.type === 'number') {
+                        productDataToUpdate[element.name] = element.value === '' ? null : parseFloat(element.value);
+                    } else if (id === 'ai_seo_keywords' || id === 'ai_key_features' || id === 'ai_unique_selling_points') {
+                        const separator = (id === 'ai_seo_keywords') ? ',' : '|';
+                        const values = element.value.split(separator).map(k => k.trim()).filter(k => k);
+                        productDataToUpdate[element.name] = values.length > 0 ? values : null; 
+                    } else {
+                        productDataToUpdate[element.name] = element.value;
+                    }
+                }
+            });
+            if (formElements.upc) {
+                productDataToUpdate.upc = formElements.upc.value;
+            }
+
+            console.log("Data to update:", productDataToUpdate);
+
+            try {
+                const response = await fetch(N8N_UPDATE_PRODUCT_INFO_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productDataToUpdate)
+                });
+
+                if (response.ok) {
+                    showToast('Product updated successfully!', 'success');
+                    fetchProductDetails(productDataToUpdate.upc); 
+                } else {
+                    const errorData = await response.json().catch(() => ({ message: `HTTP error ${response.status}`}));
+                    showToast(`Failed to update product: ${errorData.message || response.statusText}`, 'error');
+                    console.error("Update error:", errorData);
+                }
+            } catch (err) {
+                showToast('Error saving product data. Check console.', 'error');
+                console.error('Save product error:', err);
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = originalButtonText;
+                saveButton.classList.remove('opacity-50');
+            }
+        });
+
+        function showToast(message, type = 'info') {
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || typeof unsafe === 'undefined') return '';
+            return String(unsafe)
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
