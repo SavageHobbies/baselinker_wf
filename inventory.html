@@ -91,9 +91,9 @@
         const toast = document.getElementById('toast');
 
         // --- CONFIGURATION ---
-        const N8N_GET_ALL_PRODUCTS_URL = 'https://n8n.by1.net/webhook/full-inventory'; // UPDATED TO USER-PROVIDED LIVE URL
+        const N8N_GET_ALL_PRODUCTS_URL = 'https://n8n.by1.net/webhook/full-inventory'; 
         const N8N_ENRICH_PRODUCT_URL = 'https://n8n.by1.net/webhook/enrich-product';
-        const PRODUCT_DETAIL_PAGE_URL = 'product-detail.html'; // Name of your detail page
+        const PRODUCT_DETAIL_PAGE_URL = '/product_detail.html'; // UPDATED: Filename with underscore and root-relative
 
         refreshInventoryButton.addEventListener('click', fetchInventory);
 
@@ -177,7 +177,9 @@
 
                 Array.from(row.getElementsByClassName('product-data-cell')).forEach(cell => {
                     cell.addEventListener('click', () => {
-                        window.location.href = `${PRODUCT_DETAIL_PAGE_URL}?upc=${encodeURIComponent(productUpcString)}`;
+                        // Ensure PRODUCT_DETAIL_PAGE_URL starts with '/' if it's root-relative
+                        const detailPageUrl = PRODUCT_DETAIL_PAGE_URL.startsWith('/') ? PRODUCT_DETAIL_PAGE_URL : `/${PRODUCT_DETAIL_PAGE_URL}`;
+                        window.location.href = `${detailPageUrl}?upc=${encodeURIComponent(productUpcString)}`;
                     });
                 });
             });

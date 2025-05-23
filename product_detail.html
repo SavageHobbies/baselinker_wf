@@ -12,7 +12,7 @@
             background-color: #f3f4f6;
         }
         .container {
-            max-width: 900px; /* Increased width for more fields */
+            max-width: 900px; 
             margin: 0 auto;
         }
         .loader {
@@ -47,9 +47,14 @@
         .toast.error { background-color: #dc3545; }
         .toast.info { background-color: #17a2b8; }
 
-        /* Input styling is applied directly to elements using Tailwind classes */
+        label {
+            @apply block text-sm font-medium text-gray-700 mb-1;
+        }
+        input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
+            @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150;
+        }
         input[readonly], textarea[readonly] {
-            background-color: #e9ecef; /* Light gray for readonly fields */
+            background-color: #e9ecef; 
             cursor: not-allowed;
         }
         textarea {
@@ -66,6 +71,37 @@
             font-size: 0.8em;
             white-space: pre-wrap;
             word-break: break-all;
+            max-height: 200px; /* Added for better display of long JSON */
+            overflow-y: auto;   /* Added for better display of long JSON */
+        }
+        .image-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .image-gallery img {
+            max-width: 100px;
+            max-height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+        .main-product-image {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .vendor-offer {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            margin-bottom: 5px;
+        }
+        .vendor-offer:last-child {
+            border-bottom: none;
         }
     </style>
 </head>
@@ -77,8 +113,39 @@
         </div>
 
         <div id="loader" class="loader"></div>
+        
+        <div id="enrichedDisplayArea" class="mb-6 hidden">
+            <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Product Images</legend>
+                <img id="mainProductImage" src="#" alt="Main Product Image" class="main-product-image hidden mx-auto">
+                <div id="imageGallery" class="image-gallery justify-center">
+                    <p id="noImagesMessage" class="text-gray-500 italic">No additional images available.</p>
+                </div>
+            </fieldset>
+
+            <fieldset class="mt-6 border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Vendor Pricing & Offers</legend>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                    <div>
+                        <h4 class="font-medium text-gray-600 mb-2">Amazon Price:</h4>
+                        <p id="amazonPriceDisplay" class="text-gray-800">N/A</p>
+                    </div>
+                    <div>
+                        <h4 class="font-medium text-gray-600 mb-2">eBay Price (first listing):</h4>
+                        <p id="ebayPriceDisplay" class="text-gray-800">N/A</p>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h4 class="font-medium text-gray-600 mb-2">Other Vendor Offers (from UPCitemDB):</h4>
+                    <div id="upcItemDbOffers" class="text-gray-800 max-h-48 overflow-y-auto">
+                        <p class="text-gray-500 italic">No other vendor offers found.</p>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+
         <form id="productForm" class="hidden space-y-6">
-            
             <fieldset class="border border-gray-300 p-4 rounded-md">
                 <legend class="text-lg font-semibold text-gray-700 px-2">Identifiers & Core Info</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
@@ -158,10 +225,17 @@
 
     <script>
         const productForm = document.getElementById('productForm');
-        const loader = document.getElementById('loader'); // Single declaration of 'loader'
+        const loader = document.getElementById('loader'); 
         const toast = document.getElementById('toast');
         const pageTitle = document.getElementById('pageTitle');
         const productNotFoundMessage = document.getElementById('productNotFoundMessage');
+        const enrichedDisplayArea = document.getElementById('enrichedDisplayArea');
+        const mainProductImageEl = document.getElementById('mainProductImage');
+        const imageGalleryEl = document.getElementById('imageGallery');
+        const noImagesMessageEl = document.getElementById('noImagesMessage');
+        const amazonPriceDisplayEl = document.getElementById('amazonPriceDisplay');
+        const ebayPriceDisplayEl = document.getElementById('ebayPriceDisplay');
+        const upcItemDbOffersEl = document.getElementById('upcItemDbOffers');
         
         const formFieldIds = [ 
             "upc", "sku", "code_type", "quantity", "title", "brand", "condition", 
@@ -193,6 +267,7 @@
                 loader.classList.add('hidden');
                 productNotFoundMessage.textContent = 'No UPC provided in the URL.';
                 productNotFoundMessage.classList.remove('hidden');
+                enrichedDisplayArea.classList.add('hidden');
             }
         });
 
@@ -202,15 +277,17 @@
                 loader.classList.add('hidden');
                 productNotFoundMessage.textContent = 'Configuration error: Get Product Details webhook URL is not set.';
                 productNotFoundMessage.classList.remove('hidden');
+                enrichedDisplayArea.classList.add('hidden');
                 return;
             }
             
             loader.classList.remove('hidden');
             productForm.classList.add('hidden');
+            enrichedDisplayArea.classList.add('hidden');
             productNotFoundMessage.classList.add('hidden');
 
             try {
-                console.log(`Fetching details for UPC: ${upc} from ${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`); // Corrected typo
+                console.log(`Workspaceing details for UPC: ${upc} from ${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`);
                 const response = await fetch(`${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`);
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -229,7 +306,9 @@
 
                 if (productData && typeof productData === 'object' && Object.keys(productData).length > 0) {
                     populateForm(productData);
+                    displayEnrichedInfo(productData);
                     productForm.classList.remove('hidden');
+                    enrichedDisplayArea.classList.remove('hidden');
                 } else {
                     productNotFoundMessage.textContent = `Product with UPC ${escapeHtml(upc)} not found or data is empty.`;
                     console.warn("Product data not found or empty for UPC:", upc, "Response:", productDataArray);
@@ -255,15 +334,94 @@
                 return isoString; 
             }
         }
+        
+        function displayEnrichedInfo(data) {
+            // Main Image
+            if (data.main_image_url) {
+                mainProductImageEl.src = data.main_image_url;
+                mainProductImageEl.classList.remove('hidden');
+            } else {
+                mainProductImageEl.classList.add('hidden');
+            }
+
+            // Image Gallery
+            imageGalleryEl.innerHTML = ''; // Clear previous images
+            let hasOtherImages = false;
+            if (data.image_urls && Array.isArray(data.image_urls.urls) && data.image_urls.urls.length > 0) {
+                data.image_urls.urls.forEach(url => {
+                    if (url && url !== data.main_image_url) { // Don't repeat main image
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.alt = 'Product Image';
+                        imageGalleryEl.appendChild(img);
+                        hasOtherImages = true;
+                    }
+                });
+            }
+             // If no other images and main image is also not present, or only main image was in urls
+            if (!hasOtherImages && (!data.main_image_url || (data.image_urls?.urls?.length <= 1 && data.image_urls?.urls?.[0] === data.main_image_url))) {
+                noImagesMessageEl.classList.remove('hidden');
+            } else {
+                noImagesMessageEl.classList.add('hidden');
+            }
+
+
+            // Amazon Price
+            let amazonPriceText = "N/A";
+            if (data.raw_amazon_payload && data.raw_amazon_payload.items && data.raw_amazon_payload.items.length > 0) {
+                const item = data.raw_amazon_payload.items[0];
+                if (item.attributes && item.attributes.list_price && item.attributes.list_price.length > 0) {
+                    amazonPriceText = `${item.attributes.list_price[0].value} ${item.attributes.list_price[0].currency}`;
+                } else if (item.attributes && item.attributes.item_price && item.attributes.item_price.length > 0) { // Fallback
+                     amazonPriceText = `${item.attributes.item_price[0].value} ${item.attributes.item_price[0].currency}`;
+                }
+            }
+            amazonPriceDisplayEl.textContent = amazonPriceText;
+
+            // eBay Price
+            let ebayPriceText = "N/A";
+            if (data.raw_ebay_payload && data.raw_ebay_payload.itemSummaries && data.raw_ebay_payload.itemSummaries.length > 0) {
+                const item = data.raw_ebay_payload.itemSummaries[0];
+                if (item.price) {
+                    ebayPriceText = `${item.price.value} ${item.price.currency}`;
+                }
+            }
+            ebayPriceDisplayEl.textContent = ebayPriceText;
+
+            // UPCitemDB Offers
+            upcItemDbOffersEl.innerHTML = '<p class="text-gray-500 italic">No other vendor offers found.</p>'; // Default
+            if (data.raw_upcitemdb_payload && data.raw_upcitemdb_payload.items && data.raw_upcitemdb_payload.items.length > 0) {
+                const item = data.raw_upcitemdb_payload.items[0];
+                if (item.offers && Array.isArray(item.offers) && item.offers.length > 0) {
+                    upcItemDbOffersEl.innerHTML = ''; // Clear default
+                    item.offers.forEach(offer => {
+                        const offerDiv = document.createElement('div');
+                        offerDiv.className = 'vendor-offer';
+                        offerDiv.innerHTML = `
+                            <strong>${escapeHtml(offer.merchant || offer.domain)}:</strong> 
+                            ${offer.price ? escapeHtml(String(offer.price)) : 'N/A'} ${escapeHtml(offer.currency || '')}
+                            ${offer.link ? `<a href="${escapeHtml(offer.link)}" target="_blank" class="text-indigo-600 hover:underline ml-2">View Offer</a>` : ''}
+                        `;
+                        upcItemDbOffersEl.appendChild(offerDiv);
+                    });
+                }
+            }
+        }
+
 
         function populateForm(data) {
-            // Apply Tailwind classes to labels dynamically if not already set in HTML
             document.querySelectorAll('label').forEach(label => {
-                if (!label.classList.contains('block')) { // Basic check
+                if (!label.classList.contains('block')) { 
                     label.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'mb-1');
                 }
             });
             
+            document.querySelectorAll('input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select').forEach(el => {
+                if (!el.classList.contains('mt-1')) { 
+                    el.classList.add('mt-1', 'block', 'w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'focus:outline-none', 'focus:ring-indigo-500', 'focus:border-indigo-500', 'sm:text-sm', 'transition', 'duration-150');
+                }
+            });
+
             formElements.upc.value = data.upc || '';
             formElements.sku.value = data.sku || '';
             formElements.code_type.value = data.code_type || '';
@@ -320,7 +478,8 @@
                 const element = formElements[id];
                 if (element && element.name) { 
                     if (element.tagName === 'PRE') {
-                        // Skip raw payload fields for update
+                        // If you want to send back raw payloads, parse them here. Otherwise, skip.
+                        // For now, skipping raw payloads for update.
                     } else if (element.type === 'number') {
                         productDataToUpdate[element.name] = element.value === '' ? null : parseFloat(element.value);
                     } else if (id === 'ai_seo_keywords' || id === 'ai_key_features' || id === 'ai_unique_selling_points') {
