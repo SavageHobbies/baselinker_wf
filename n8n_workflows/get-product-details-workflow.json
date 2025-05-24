@@ -1,0 +1,34 @@
+{
+  "name": "Get Product Details Workflow",
+  "description": "Workflow to retrieve product details by UPC",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-single-product-details",
+        "options": {
+          "responseData": ""
+        }
+      },
+      "name": "Webhook (GET /get-single-product-details)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1100,
+        520
+      ],
+      "id": "get-product-webhook",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {},
+  "createdAt": "2025-05-24T00:00:00.000Z",
+  "updatedAt": "2025-05-24T00:00:00.000Z",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "tags": ["baselinker", "product-details"],
+  "triggerCount": 0,
+  "versionId": "1"
+}

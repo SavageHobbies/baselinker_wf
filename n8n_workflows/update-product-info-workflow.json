@@ -1,0 +1,34 @@
+{
+  "name": "Update Product Info Workflow",
+  "description": "Workflow to update product information and details",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "edit-update",
+        "options": {
+          "responseData": ""
+        }
+      },
+      "name": "Webhook (POST /edit-update)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1100,
+        520
+      ],
+      "id": "update-product-webhook",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {},
+  "createdAt": "2025-05-24T00:00:00.000Z",
+  "updatedAt": "2025-05-24T00:00:00.000Z",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "tags": ["baselinker", "product-update"],
+  "triggerCount": 0,
+  "versionId": "1"
+}

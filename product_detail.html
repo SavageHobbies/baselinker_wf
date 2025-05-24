@@ -12,7 +12,7 @@
             background-color: #f3f4f6;
         }
         .container {
-            max-width: 900px; 
+            max-width: 900px; /* Increased width for more fields */
             margin: 0 auto;
         }
         .loader {
@@ -47,14 +47,9 @@
         .toast.error { background-color: #dc3545; }
         .toast.info { background-color: #17a2b8; }
 
-        label {
-            @apply block text-sm font-medium text-gray-700 mb-1;
-        }
-        input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select {
-            @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150;
-        }
+        /* Input styling is applied directly to elements using Tailwind classes */
         input[readonly], textarea[readonly] {
-            background-color: #e9ecef; 
+            background-color: #e9ecef; /* Light gray for readonly fields */
             cursor: not-allowed;
         }
         textarea {
@@ -71,37 +66,38 @@
             font-size: 0.8em;
             white-space: pre-wrap;
             word-break: break-all;
-            max-height: 200px; /* Added for better display of long JSON */
-            overflow-y: auto;   /* Added for better display of long JSON */
         }
-        .image-gallery {
+
+        .selected-thumbnail-item {
+            transition: all 0.2s ease-in-out;
+        }
+        .selected-thumbnail-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .selected-thumbnail-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        .drop-zone-active {
+            background-color: #dbeafe !important;
+            border-color: #3b82f6 !important;
+            border-style: dashed !important;
+        }
+        .image-counter-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .image-gallery img {
-            max-width: 100px;
-            max-height: 100px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            object-fit: cover;
-        }
-        .main-product-image {
-            max-width: 200px;
-            max-height: 200px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            object-fit: cover;
-            margin-bottom: 10px;
-        }
-        .vendor-offer {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-        }
-        .vendor-offer:last-child {
-            border-bottom: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -113,39 +109,8 @@
         </div>
 
         <div id="loader" class="loader"></div>
-        
-        <div id="enrichedDisplayArea" class="mb-6 hidden">
-            <fieldset class="border border-gray-300 p-4 rounded-md">
-                <legend class="text-lg font-semibold text-gray-700 px-2">Product Images</legend>
-                <img id="mainProductImage" src="#" alt="Main Product Image" class="main-product-image hidden mx-auto">
-                <div id="imageGallery" class="image-gallery justify-center">
-                    <p id="noImagesMessage" class="text-gray-500 italic">No additional images available.</p>
-                </div>
-            </fieldset>
-
-            <fieldset class="mt-6 border border-gray-300 p-4 rounded-md">
-                <legend class="text-lg font-semibold text-gray-700 px-2">Vendor Pricing & Offers</legend>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                    <div>
-                        <h4 class="font-medium text-gray-600 mb-2">Amazon Price:</h4>
-                        <p id="amazonPriceDisplay" class="text-gray-800">N/A</p>
-                    </div>
-                    <div>
-                        <h4 class="font-medium text-gray-600 mb-2">eBay Price (first listing):</h4>
-                        <p id="ebayPriceDisplay" class="text-gray-800">N/A</p>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <h4 class="font-medium text-gray-600 mb-2">Other Vendor Offers (from UPCitemDB):</h4>
-                    <div id="upcItemDbOffers" class="text-gray-800 max-h-48 overflow-y-auto">
-                        <p class="text-gray-500 italic">No other vendor offers found.</p>
-                    </div>
-                </div>
-            </fieldset>
-        </div>
-
-
         <form id="productForm" class="hidden space-y-6">
+            
             <fieldset class="border border-gray-300 p-4 rounded-md">
                 <legend class="text-lg font-semibold text-gray-700 px-2">Identifiers & Core Info</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
@@ -190,6 +155,55 @@
                 </div>
             </fieldset>
             
+            <fieldset id="manageSelectedImagesFieldset" class="border border-gray-300 p-4 rounded-md mt-6 hidden">
+                <legend class="text-lg font-semibold text-gray-700 px-2">Manage Selected Images</legend>
+                <p class="text-sm text-gray-500 mb-2">Drag and drop to reorder. Select one image as the main display image.</p>
+                <div id="selectedImagesPreviewContainer" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-2 border border-gray-200 rounded-md min-h-[100px]">
+                    <!-- Selected image thumbnails will be populated here by JavaScript -->
+                </div>                <p id="noImagesSelectedForManagement" class="text-sm text-gray-500 italic mt-2">No images selected yet. Check the boxes above to select images to keep.</p>
+                <div class="mt-6 flex flex-wrap gap-2 justify-between">
+                    <div class="flex flex-wrap gap-2">
+                        <button id="selectAllImagesButton"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Select All
+                        </button>
+                        <button id="deselectAllImagesButton"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Deselect All
+                        </button>
+                        <button id="validateImagesButton"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Validate URLs
+                        </button>
+                        <button id="exportImagesButton"
+                                class="px-3 py-1 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            Export List
+                        </button>
+                    </div>
+                    <button id="saveKeptImagesButton"
+                            class="px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                            disabled>
+                        Save Kept Images
+                    </button>
+                </div>
+            </fieldset>
+              <fieldset class="border border-gray-300 p-4 rounded-md">
+                <legend class="text-lg font-semibold text-gray-700 px-2 relative">
+                    Product Images
+                    <span id="imageCounterBadge" class="image-counter-badge hidden">0</span>
+                </legend>
+                <div class="mt-2">
+                    <div id="mainImageContainer" class="mb-4 relative">
+                        <img id="mainProductImage" src="https://via.placeholder.com/300x200.png?text=No+Image" alt="Main Product Image" class="w-full max-w-md mx-auto rounded-md shadow-md object-contain h-64">
+                        <!-- Checkbox for main image will be added here by JS if image exists -->
+                    </div>
+                    <p id="imageSelectionCounter" class="text-sm text-gray-600 mt-2 mb-2 text-center"></p>
+                    <div id="imageGallery" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                        <!-- Gallery images will be populated here -->
+                    </div>
+                </div>
+            </fieldset>
+            
             <fieldset class="border border-gray-300 p-4 rounded-md">
                 <legend class="text-lg font-semibold text-gray-700 px-2">Status & Timestamps</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 mt-2">
@@ -225,17 +239,14 @@
 
     <script>
         const productForm = document.getElementById('productForm');
-        const loader = document.getElementById('loader'); 
+        const loader = document.getElementById('loader'); // Single declaration of 'loader'
         const toast = document.getElementById('toast');
         const pageTitle = document.getElementById('pageTitle');
         const productNotFoundMessage = document.getElementById('productNotFoundMessage');
-        const enrichedDisplayArea = document.getElementById('enrichedDisplayArea');
-        const mainProductImageEl = document.getElementById('mainProductImage');
-        const imageGalleryEl = document.getElementById('imageGallery');
-        const noImagesMessageEl = document.getElementById('noImagesMessage');
-        const amazonPriceDisplayEl = document.getElementById('amazonPriceDisplay');
-        const ebayPriceDisplayEl = document.getElementById('ebayPriceDisplay');
-        const upcItemDbOffersEl = document.getElementById('upcItemDbOffers');
+        let selectedImagesForKeeping = [];
+        const MAX_SELECTED_IMAGES = 12;
+        let draggedItem = null; // For drag-and-drop
+        // saveKeptImagesButton will be defined in DOMContentLoaded
         
         const formFieldIds = [ 
             "upc", "sku", "code_type", "quantity", "title", "brand", "condition", 
@@ -254,6 +265,7 @@
         // --- CONFIGURATION ---
         const N8N_GET_PRODUCT_DETAILS_URL = 'https://n8n.by1.net/webhook/get-single-product-details'; 
         const N8N_UPDATE_PRODUCT_INFO_URL = 'https://n8n.by1.net/webhook/edit-update'; 
+        const N8N_SAVE_PRODUCT_IMAGES_URL = 'https://n8n.by1.net/webhook/product-images';
 
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -267,7 +279,30 @@
                 loader.classList.add('hidden');
                 productNotFoundMessage.textContent = 'No UPC provided in the URL.';
                 productNotFoundMessage.classList.remove('hidden');
-                enrichedDisplayArea.classList.add('hidden');
+            }            const saveKeptImagesButton = document.getElementById('saveKeptImagesButton');
+            if (saveKeptImagesButton) {
+                saveKeptImagesButton.addEventListener('click', handleSaveKeptImages);
+            }
+
+            // Add event listeners for new image management buttons
+            const selectAllButton = document.getElementById('selectAllImagesButton');
+            if (selectAllButton) {
+                selectAllButton.addEventListener('click', selectAllImages);
+            }
+
+            const deselectAllButton = document.getElementById('deselectAllImagesButton');
+            if (deselectAllButton) {
+                deselectAllButton.addEventListener('click', deselectAllImages);
+            }
+
+            const validateButton = document.getElementById('validateImagesButton');
+            if (validateButton) {
+                validateButton.addEventListener('click', validateImageUrls);
+            }
+
+            const exportButton = document.getElementById('exportImagesButton');
+            if (exportButton) {
+                exportButton.addEventListener('click', exportImageList);
             }
         });
 
@@ -277,17 +312,15 @@
                 loader.classList.add('hidden');
                 productNotFoundMessage.textContent = 'Configuration error: Get Product Details webhook URL is not set.';
                 productNotFoundMessage.classList.remove('hidden');
-                enrichedDisplayArea.classList.add('hidden');
                 return;
             }
             
             loader.classList.remove('hidden');
             productForm.classList.add('hidden');
-            enrichedDisplayArea.classList.add('hidden');
             productNotFoundMessage.classList.add('hidden');
 
             try {
-                console.log(`Workspaceing details for UPC: ${upc} from ${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`);
+                console.log(`Fetching details for UPC: ${upc} from ${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`); // Corrected typo
                 const response = await fetch(`${N8N_GET_PRODUCT_DETAILS_URL}?upc=${encodeURIComponent(upc)}`);
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -306,9 +339,9 @@
 
                 if (productData && typeof productData === 'object' && Object.keys(productData).length > 0) {
                     populateForm(productData);
-                    displayEnrichedInfo(productData);
                     productForm.classList.remove('hidden');
-                    enrichedDisplayArea.classList.remove('hidden');
+                    // Call displayEnrichedInfo which will now also gather images
+                    displayEnrichedInfo(productData); 
                 } else {
                     productNotFoundMessage.textContent = `Product with UPC ${escapeHtml(upc)} not found or data is empty.`;
                     console.warn("Product data not found or empty for UPC:", upc, "Response:", productDataArray);
@@ -325,6 +358,504 @@
             }
         }
 
+        // This function will be populated based on the new requirements
+        function displayEnrichedInfo(data) {
+            console.log("Original product data for enrichment:", data);
+            
+            // 1. Initialize selectedImagesForKeeping based on data.kept_images
+            selectedImagesForKeeping = []; // Clear previous selections
+            if (data.kept_images && Array.isArray(data.kept_images) && data.kept_images.length > 0) {
+                console.log("Loading kept_images from data:", data.kept_images);
+                selectedImagesForKeeping = data.kept_images.map(img => ({ 
+                    ...img, 
+                    order: img.order - 1 // Convert 1-indexed from DB to 0-indexed for internal use
+                }));
+                // Ensure there's a main image if any are kept
+                if (selectedImagesForKeeping.length > 0 && !selectedImagesForKeeping.some(img => img.is_main)) {
+                    selectedImagesForKeeping.sort((a,b) => a.order - b.order)[0].is_main = true;
+                }
+            }
+
+            const allPotentialImageUrls = [];
+            const addedUrls = new Set(); // Helper to track added URLs for deduplication
+
+            // Helper function to add image if URL is not already added
+            const addImageUrl = (imgObj) => {
+                if (imgObj && imgObj.url && !addedUrls.has(imgObj.url)) {
+                    allPotentialImageUrls.push(imgObj);
+                    addedUrls.add(imgObj.url);
+                }
+            };
+
+            // 1. Extract from data.main_image_url
+            if (data.main_image_url) {
+                addImageUrl({ url: data.main_image_url, source: 'main_image_url' });
+            }
+
+            // 2. Extract from data.image_urls
+            if (data.image_urls && Array.isArray(data.image_urls.urls)) {
+                data.image_urls.urls.forEach(url => {
+                    if (url) { // Ensure URL is not null/empty
+                        addImageUrl({ url: url, source: 'image_urls' });
+                    }
+                });
+            }
+
+            // 3. Extract from Amazon Payload (data.raw_amazon_payload)
+            if (data.raw_amazon_payload && data.raw_amazon_payload.items && 
+                Array.isArray(data.raw_amazon_payload.items) && data.raw_amazon_payload.items.length > 0 &&
+                data.raw_amazon_payload.items[0].images && Array.isArray(data.raw_amazon_payload.items[0].images)) {
+                
+                data.raw_amazon_payload.items[0].images.forEach(imgGroup => {
+                    if (imgGroup && Array.isArray(imgGroup.images)) {
+                        imgGroup.images.forEach(actualImage => {
+                            if (actualImage && actualImage.link) {
+                                addImageUrl({ 
+                                    url: actualImage.link, 
+                                    source: 'amazon', 
+                                    variant: actualImage.variant, 
+                                    width: actualImage.width, 
+                                    height: actualImage.height 
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // 4. Extract from eBay Payload (data.raw_ebay_payload)
+            if (data.raw_ebay_payload && Array.isArray(data.raw_ebay_payload.itemSummaries)) {
+                data.raw_ebay_payload.itemSummaries.forEach(itemSummary => {
+                    if (itemSummary) {
+                        if (itemSummary.image && itemSummary.image.imageUrl) {
+                            addImageUrl({ url: itemSummary.image.imageUrl, source: 'ebay_primary' });
+                        }
+                        if (itemSummary.thumbnailImages && Array.isArray(itemSummary.thumbnailImages)) {
+                            itemSummary.thumbnailImages.forEach(thumb => {
+                                if (thumb && thumb.imageUrl) {
+                                    addImageUrl({ url: thumb.imageUrl, source: 'ebay_thumbnail' });
+                                }
+                            });
+                        }
+                        if (itemSummary.additionalImages && Array.isArray(itemSummary.additionalImages)) {
+                            itemSummary.additionalImages.forEach(additional => {
+                                if (additional && additional.imageUrl) {
+                                    addImageUrl({ url: additional.imageUrl, source: 'ebay_additional' });
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            // 5. Extract from UPCitemDB Payload (data.raw_upcitemdb_payload)
+            if (data.raw_upcitemdb_payload && Array.isArray(data.raw_upcitemdb_payload.items)) {
+                data.raw_upcitemdb_payload.items.forEach(item => {
+                    if (item) {
+                        if (item.images && Array.isArray(item.images)) {
+                            item.images.forEach(imageUrlString => {
+                                if (imageUrlString) {
+                                    addImageUrl({ url: imageUrlString, source: 'upcitemdb' });
+                                }
+                            });
+                        }
+                        if (item.offers && Array.isArray(item.offers)) {
+                            item.offers.forEach(offer => {
+                                // Assuming offer.image_url is the field, adjust if different based on actual data.
+                                // Common alternatives: offer.imageUrl, offer.imageLink
+                                if (offer && offer.image_url) { 
+                                    addImageUrl({ url: offer.image_url, source: 'upcitemdb_offer' });
+                                } else if (offer && offer.imageUrl) { // fallback check
+                                     addImageUrl({ url: offer.imageUrl, source: 'upcitemdb_offer_alt' });
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Deduplication is handled by the `addedUrls` Set and `addImageUrl` helper during the process.
+            // The `allPotentialImageUrls` array already contains unique image objects by URL.
+
+            console.log("All potential image URLs for selection:", allPotentialImageUrls);
+
+            const mainProductImageEl = document.getElementById('mainProductImage');
+            const mainImageContainer = document.getElementById('mainImageContainer');
+            const imageGalleryEl = document.getElementById('imageGallery');
+            
+            // Clear previous main image checkbox if any
+            const existingMainCheckbox = mainImageContainer.querySelector('.image-select-checkbox');
+            if (existingMainCheckbox) {
+                existingMainCheckbox.remove();
+            }
+
+            // 2. Determine the main image for display
+            let displayMainImageObj = null;
+            const mainKeptImage = selectedImagesForKeeping.find(img => img.is_main);
+
+            if (mainKeptImage) {
+                displayMainImageObj = mainKeptImage;
+            } else if (allPotentialImageUrls.length > 0) {
+                 // Fallback logic if no kept_image is main (or no kept_images)
+                displayMainImageObj = allPotentialImageUrls.find(img => img.source === 'amazon' && img.variant === 'MAIN' && img.width > 300);
+                if (!displayMainImageObj) displayMainImageObj = allPotentialImageUrls.find(img => img.source === 'main_image_url');
+                if (!displayMainImageObj) displayMainImageObj = allPotentialImageUrls.find(img => img.source === 'ebay_primary');
+                if (!displayMainImageObj) displayMainImageObj = allPotentialImageUrls[0];
+            }
+
+
+            if (mainProductImageEl && displayMainImageObj) {
+                mainProductImageEl.src = displayMainImageObj.url;
+                mainProductImageEl.alt = `Main Image: ${displayMainImageObj.source || 'N/A'} - ${displayMainImageObj.url.substring(displayMainImageObj.url.lastIndexOf('/') + 1)}`;
+                
+                const mainCheckbox = document.createElement('input');
+                mainCheckbox.type = 'checkbox';
+                mainCheckbox.className = 'image-select-checkbox absolute top-2 right-2 z-10 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500';
+                mainCheckbox.dataset.imageUrl = displayMainImageObj.url;
+                mainCheckbox.dataset.imageSource = displayMainImageObj.source  || 'N/A';
+                Object.keys(displayMainImageObj).forEach(key => {
+                    if (key !== 'url' && key !== 'source' && typeof displayMainImageObj[key] !== 'object') {
+                         mainCheckbox.dataset[key] = displayMainImageObj[key];
+                    }
+                });
+                mainCheckbox.checked = selectedImagesForKeeping.some(img => img.url === displayMainImageObj.url);
+                mainCheckbox.addEventListener('change', () => handleImageSelection(mainCheckbox, { ...displayMainImageObj })); // Pass a copy
+                mainImageContainer.appendChild(mainCheckbox);
+
+            } else if (mainProductImageEl) {
+                mainProductImageEl.src = 'https://via.placeholder.com/300x200.png?text=No+Image+Available';
+                mainProductImageEl.alt = 'No Image Available';
+            }
+
+            // 4. Populate imageGalleryEl
+            if (imageGalleryEl) {
+                imageGalleryEl.innerHTML = ''; // Clear previous gallery images
+                const displayedInGallery = new Set();
+
+                // Helper function to render an image in the gallery
+                const renderImageInGallery = (imageObjToRender) => {
+                    if (displayedInGallery.has(imageObjToRender.url)) return; // Avoid duplicates
+
+                    const galleryItemContainer = document.createElement('div');
+                    galleryItemContainer.className = 'relative border border-gray-200 rounded-md p-1 hover:shadow-lg transition-shadow';
+
+                    const imgElement = document.createElement('img');
+                    imgElement.src = imageObjToRender.url;
+                    imgElement.alt = `Image from ${imageObjToRender.source || 'N/A'} (${imageObjToRender.variant || 'N/A'})`;
+                    imgElement.className = 'w-full h-28 object-cover rounded-md cursor-pointer';
+                    
+                    imgElement.addEventListener('click', () => {
+                        if(mainProductImageEl) {
+                             mainProductImageEl.src = imageObjToRender.url;
+                             mainProductImageEl.alt = `Main Image: ${imageObjToRender.source || 'N/A'} - ${imageObjToRender.url.substring(imageObjToRender.url.lastIndexOf('/') + 1)}`;
+                             
+                             const existingMainCb = mainImageContainer.querySelector('.image-select-checkbox');
+                             if (existingMainCb) existingMainCb.remove();
+                             
+                             const newMainCheckbox = document.createElement('input');
+                             newMainCheckbox.type = 'checkbox';
+                             newMainCheckbox.className = 'image-select-checkbox absolute top-2 right-2 z-10 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500';
+                             newMainCheckbox.dataset.imageUrl = imageObjToRender.url;
+                             newMainCheckbox.dataset.imageSource = imageObjToRender.source || 'N/A';
+                             Object.keys(imageObjToRender).forEach(key => {
+                                if (key !== 'url' && key !== 'source' && typeof imageObjToRender[key] !== 'object') {
+                                     newMainCheckbox.dataset[key] = imageObjToRender[key];
+                                }
+                             });
+                             newMainCheckbox.checked = selectedImagesForKeeping.some(selected => selected.url === imageObjToRender.url);
+                             newMainCheckbox.addEventListener('change', () => handleImageSelection(newMainCheckbox, { ...imageObjToRender }));
+                             mainImageContainer.appendChild(newMainCheckbox);
+                        }
+                    });
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'image-select-checkbox absolute top-1 right-1 z-10 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500';
+                    checkbox.dataset.imageUrl = imageObjToRender.url;
+                    checkbox.dataset.imageSource = imageObjToRender.source || 'N/A';
+                     Object.keys(imageObjToRender).forEach(key => {
+                        if (key !== 'url' && key !== 'source' && typeof imageObjToRender[key] !== 'object') {
+                             checkbox.dataset[key] = imageObjToRender[key];
+                        }
+                    });
+                    checkbox.checked = selectedImagesForKeeping.some(img => img.url === imageObjToRender.url);
+                    checkbox.addEventListener('change', () => handleImageSelection(checkbox, { ...imageObjToRender })); // Pass a copy
+
+                    galleryItemContainer.appendChild(imgElement);
+                    galleryItemContainer.appendChild(checkbox);
+                    imageGalleryEl.appendChild(galleryItemContainer);
+                    displayedInGallery.add(imageObjToRender.url);
+                };
+
+                // First, render "kept" images that are not the main display image
+                selectedImagesForKeeping.forEach(keptImage => {
+                    if (!displayMainImageObj || keptImage.url !== displayMainImageObj.url) {
+                         renderImageInGallery(keptImage);
+                    }
+                });
+
+                // Then, render other images from allPotentialImageUrls
+                allPotentialImageUrls.forEach(potentialImage => {
+                     if (!displayMainImageObj || potentialImage.url !== displayMainImageObj.url) {
+                        renderImageInGallery(potentialImage);
+                    }
+                });
+            }
+            
+            updateImageSelectionCounter(); // Initial call
+            renderSelectedImagesForManagement(); // Initial call for management UI
+            return allPotentialImageUrls; 
+        }
+
+        function handleImageSelection(checkboxElement, imageObject) {
+            const isSelected = selectedImagesForKeeping.some(img => img.url === imageObject.url);
+
+            if (checkboxElement.checked && !isSelected) {
+                if (selectedImagesForKeeping.length < MAX_SELECTED_IMAGES) {
+                    const newImageToAdd = { ...imageObject }; // Clone to avoid modifying original from allPotentialImageUrls
+                    newImageToAdd.order = selectedImagesForKeeping.length; // 0-indexed for now, will be 1-indexed in render
+                    newImageToAdd.is_main = selectedImagesForKeeping.length === 0; // First selected is main
+                    selectedImagesForKeeping.push(newImageToAdd);
+                } else {
+                    checkboxElement.checked = false;
+                    showToast(`Maximum of ${MAX_SELECTED_IMAGES} images can be selected.`, 'info');
+                }
+            } else if (!checkboxElement.checked && isSelected) {
+                const removedImage = selectedImagesForKeeping.find(img => img.url === imageObject.url);
+                selectedImagesForKeeping = selectedImagesForKeeping.filter(img => img.url !== imageObject.url);
+                
+                // Re-assign order
+                selectedImagesForKeeping.forEach((img, index) => img.order = index);
+
+                if (removedImage && removedImage.is_main && selectedImagesForKeeping.length > 0) {
+                    selectedImagesForKeeping[0].is_main = true; // Make the new first image main
+                }
+                 // if last image removed and it was main, no new main to set
+            }
+            
+            // If no image is main and there are selected images, make the first one main
+            if (selectedImagesForKeeping.length > 0 && !selectedImagesForKeeping.some(img => img.is_main)) {
+                selectedImagesForKeeping[0].is_main = true;
+            }
+
+
+            updateImageSelectionCounter();
+            renderSelectedImagesForManagement();
+            console.log("Selected images for keeping:", selectedImagesForKeeping);
+        }
+        
+        function setAsMainImage(imageUrl) {
+            let newMainImage = null;
+            selectedImagesForKeeping.forEach(img => {
+                if (img.url === imageUrl) {
+                    img.is_main = true;
+                    newMainImage = img;
+                } else {
+                    img.is_main = false;
+                }
+            });
+
+            if (newMainImage) {
+                const mainProductImageEl = document.getElementById('mainProductImage');
+                if (mainProductImageEl) {
+                    mainProductImageEl.src = newMainImage.url;
+                    mainProductImageEl.alt = `Main Image: ${newMainImage.source} - ${newMainImage.url.substring(newMainImage.url.lastIndexOf('/') + 1)}`;
+                }
+            }
+            renderSelectedImagesForManagement();
+        }
+
+        function renderSelectedImagesForManagement() {
+            const container = document.getElementById('selectedImagesPreviewContainer');
+            const fieldset = document.getElementById('manageSelectedImagesFieldset');
+            const noImagesMsg = document.getElementById('noImagesSelectedForManagement');
+            const saveKeptImagesButton = document.getElementById('saveKeptImagesButton');
+
+
+            if (!container || !fieldset || !noImagesMsg || !saveKeptImagesButton) return;
+
+            if (selectedImagesForKeeping.length === 0) {
+                fieldset.classList.add('hidden');
+                noImagesMsg.style.display = 'block';
+                saveKeptImagesButton.disabled = true;
+                return;
+            }
+            
+            fieldset.classList.remove('hidden');
+            saveKeptImagesButton.disabled = false;
+            noImagesMsg.style.display = 'none';
+            container.innerHTML = ''; // Clear previous items
+
+            // Sort by order before rendering
+            selectedImagesForKeeping.sort((a, b) => a.order - b.order);
+
+            selectedImagesForKeeping.forEach((imgObj, index) => {
+                // Ensure order is 1-indexed for display and logic if needed, but internally keep 0-indexed for arrays
+                // imgObj.order = index; // This was already done in handleImageSelection or drop
+
+                const thumbnailDiv = document.createElement('div');
+                thumbnailDiv.className = `selected-thumbnail-item relative border p-1 rounded-md group cursor-grab ${imgObj.is_main ? 'border-4 border-indigo-600 shadow-lg' : 'border-gray-300'}`;
+                thumbnailDiv.draggable = true;
+                thumbnailDiv.dataset.imageUrl = imgObj.url; // Use URL as ID
+
+                thumbnailDiv.addEventListener('dragstart', (event) => {
+                    draggedItem = imgObj;
+                    event.dataTransfer.setData('text/plain', imgObj.url);
+                    event.target.classList.add('opacity-50', 'border-dashed');
+                });
+                thumbnailDiv.addEventListener('dragover', (event) => {
+                    event.preventDefault(); // Necessary to allow dropping
+                    event.target.closest('.selected-thumbnail-item').classList.add('bg-indigo-100');
+                });
+                thumbnailDiv.addEventListener('dragleave', (event) => {
+                     event.target.closest('.selected-thumbnail-item').classList.remove('bg-indigo-100');
+                });
+                thumbnailDiv.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    event.target.closest('.selected-thumbnail-item').classList.remove('bg-indigo-100');
+                    if (!draggedItem) return;
+
+                    const targetUrl = event.target.closest('.selected-thumbnail-item').dataset.imageUrl;
+                    if (draggedItem.url === targetUrl) return; // Dropped on itself
+
+                    const fromIndex = selectedImagesForKeeping.findIndex(img => img.url === draggedItem.url);
+                    const toIndex = selectedImagesForKeeping.findIndex(img => img.url === targetUrl);
+
+                    if (fromIndex !== -1 && toIndex !== -1) {
+                        // Remove dragged item and insert it at the target position
+                        const [movedItem] = selectedImagesForKeeping.splice(fromIndex, 1);
+                        selectedImagesForKeeping.splice(toIndex, 0, movedItem);
+
+                        // Re-assign order property based on new array sequence
+                        selectedImagesForKeeping.forEach((img, idx) => {
+                            img.order = idx;
+                        });
+                    }
+                    draggedItem = null;
+                    renderSelectedImagesForManagement(); // Re-render the sorted list
+                });
+                 thumbnailDiv.addEventListener('dragend', (event) => {
+                    event.target.classList.remove('opacity-50', 'border-dashed', 'bg-indigo-100');
+                    // Clean up any other visual cues if necessary
+                    Array.from(container.children).forEach(child => child.classList.remove('bg-indigo-100'));
+                    draggedItem = null;
+                });
+
+
+                const imgEl = document.createElement('img');
+                imgEl.src = imgObj.url;
+                imgEl.alt = `Selected: ${imgObj.source || ''} - ${imgObj.url.substring(imgObj.url.lastIndexOf('/')+1).substring(0,15)}...`;
+                imgEl.className = 'w-full h-24 object-cover rounded-md pointer-events-none'; // pointer-events-none for img to allow drop on div
+
+                const setMainBtn = document.createElement('button');
+                setMainBtn.textContent = imgObj.is_main ? 'Is Main' : 'Set Main';
+                setMainBtn.className = `set-main-btn absolute bottom-1 right-1 text-xs px-1.5 py-0.5 rounded-sm shadow ${imgObj.is_main ? 'bg-indigo-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`;
+                if (imgObj.is_main) {
+                    setMainBtn.disabled = true;
+                }
+                setMainBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering drag or other parent events
+                    setAsMainImage(imgObj.url);
+                });
+                
+                const orderBadge = document.createElement('span');
+                orderBadge.textContent = `#${imgObj.order + 1}`; // Display 1-indexed order
+                orderBadge.className = 'absolute top-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1.5 py-0.5 rounded-sm';
+
+                thumbnailDiv.appendChild(imgEl);
+                thumbnailDiv.appendChild(setMainBtn);
+                thumbnailDiv.appendChild(orderBadge);
+                container.appendChild(thumbnailDiv);
+            });
+        }        function updateImageSelectionCounter() {
+            const counterElement = document.getElementById('imageSelectionCounter');
+            const badgeElement = document.getElementById('imageCounterBadge');
+            
+            if (counterElement) {
+                counterElement.textContent = `Selected ${selectedImagesForKeeping.length} of ${MAX_SELECTED_IMAGES} images.`;
+            }
+
+            if (badgeElement) {
+                if (selectedImagesForKeeping.length > 0) {
+                    badgeElement.textContent = selectedImagesForKeeping.length;
+                    badgeElement.classList.remove('hidden');
+                } else {
+                    badgeElement.classList.add('hidden');
+                }
+            }
+
+            const allCheckboxes = document.querySelectorAll('.image-select-checkbox');
+            const limitReached = selectedImagesForKeeping.length >= MAX_SELECTED_IMAGES;
+
+            allCheckboxes.forEach(cb => {
+                if (!cb.checked) { // Only disable unchecked checkboxes
+                    cb.disabled = limitReached;
+                }
+                 // Ensure checkbox for an already selected image remains enabled for unchecking
+                if (cb.checked && selectedImagesForKeeping.some(img => img.url === cb.dataset.imageUrl)) {
+                    cb.disabled = false;
+                }
+            });
+        }
+
+        async function handleSaveKeptImages() {
+            const saveKeptImagesButton = document.getElementById('saveKeptImagesButton');
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentUpc = formElements.upc.value || urlParams.get('upc');
+
+            if (!currentUpc) {
+                showToast('UPC not found. Cannot save images.', 'error');
+                return;
+            }
+
+            const imagesToSave = selectedImagesForKeeping.map(img => ({
+                url: img.url,
+                order: img.order + 1, // Convert 0-indexed to 1-indexed for saving
+                is_main: img.is_main,
+                source: img.source,
+                variant: img.variant, // Example of including other metadata
+                width: img.width,   // Example
+                height: img.height  // Example
+            }));
+
+            const payload = {
+                upc: currentUpc,
+                selected_images: imagesToSave
+            };
+
+            console.log("Attempting to save Kept Images - Payload:", JSON.stringify(payload, null, 2)); // Keep this log for debugging
+
+            saveKeptImagesButton.disabled = true;
+            saveKeptImagesButton.textContent = 'Saving...';
+
+            try {
+                const response = await fetch(N8N_SAVE_PRODUCT_IMAGES_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    showToast('Kept images saved successfully!', 'success');
+                    // Optionally, you might want to re-fetch product details here to get the updated "kept" images list
+                    // and refresh the UI, or assume the backend returns the updated list which you can then process.
+                    // For now, just show success. The next part of Step 6 will handle displaying kept images on load.
+                } else {
+                    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                    showToast(`Failed to save images: ${errorData.message || 'Unknown error'}`, 'error');
+                    console.error("Error saving kept images:", errorData);
+                }
+            } catch (err) {
+                showToast('Network error while saving images. Check console.', 'error');
+                console.error('Network error in handleSaveKeptImages:', err);
+            } finally {
+                saveKeptImagesButton.disabled = selectedImagesForKeeping.length === 0;
+                saveKeptImagesButton.textContent = 'Save Kept Images';
+            }
+        }
+
         function formatTimestamp(isoString) {
             if (!isoString) return '';
             try {
@@ -334,94 +865,15 @@
                 return isoString; 
             }
         }
-        
-        function displayEnrichedInfo(data) {
-            // Main Image
-            if (data.main_image_url) {
-                mainProductImageEl.src = data.main_image_url;
-                mainProductImageEl.classList.remove('hidden');
-            } else {
-                mainProductImageEl.classList.add('hidden');
-            }
-
-            // Image Gallery
-            imageGalleryEl.innerHTML = ''; // Clear previous images
-            let hasOtherImages = false;
-            if (data.image_urls && Array.isArray(data.image_urls.urls) && data.image_urls.urls.length > 0) {
-                data.image_urls.urls.forEach(url => {
-                    if (url && url !== data.main_image_url) { // Don't repeat main image
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.alt = 'Product Image';
-                        imageGalleryEl.appendChild(img);
-                        hasOtherImages = true;
-                    }
-                });
-            }
-             // If no other images and main image is also not present, or only main image was in urls
-            if (!hasOtherImages && (!data.main_image_url || (data.image_urls?.urls?.length <= 1 && data.image_urls?.urls?.[0] === data.main_image_url))) {
-                noImagesMessageEl.classList.remove('hidden');
-            } else {
-                noImagesMessageEl.classList.add('hidden');
-            }
-
-
-            // Amazon Price
-            let amazonPriceText = "N/A";
-            if (data.raw_amazon_payload && data.raw_amazon_payload.items && data.raw_amazon_payload.items.length > 0) {
-                const item = data.raw_amazon_payload.items[0];
-                if (item.attributes && item.attributes.list_price && item.attributes.list_price.length > 0) {
-                    amazonPriceText = `${item.attributes.list_price[0].value} ${item.attributes.list_price[0].currency}`;
-                } else if (item.attributes && item.attributes.item_price && item.attributes.item_price.length > 0) { // Fallback
-                     amazonPriceText = `${item.attributes.item_price[0].value} ${item.attributes.item_price[0].currency}`;
-                }
-            }
-            amazonPriceDisplayEl.textContent = amazonPriceText;
-
-            // eBay Price
-            let ebayPriceText = "N/A";
-            if (data.raw_ebay_payload && data.raw_ebay_payload.itemSummaries && data.raw_ebay_payload.itemSummaries.length > 0) {
-                const item = data.raw_ebay_payload.itemSummaries[0];
-                if (item.price) {
-                    ebayPriceText = `${item.price.value} ${item.price.currency}`;
-                }
-            }
-            ebayPriceDisplayEl.textContent = ebayPriceText;
-
-            // UPCitemDB Offers
-            upcItemDbOffersEl.innerHTML = '<p class="text-gray-500 italic">No other vendor offers found.</p>'; // Default
-            if (data.raw_upcitemdb_payload && data.raw_upcitemdb_payload.items && data.raw_upcitemdb_payload.items.length > 0) {
-                const item = data.raw_upcitemdb_payload.items[0];
-                if (item.offers && Array.isArray(item.offers) && item.offers.length > 0) {
-                    upcItemDbOffersEl.innerHTML = ''; // Clear default
-                    item.offers.forEach(offer => {
-                        const offerDiv = document.createElement('div');
-                        offerDiv.className = 'vendor-offer';
-                        offerDiv.innerHTML = `
-                            <strong>${escapeHtml(offer.merchant || offer.domain)}:</strong> 
-                            ${offer.price ? escapeHtml(String(offer.price)) : 'N/A'} ${escapeHtml(offer.currency || '')}
-                            ${offer.link ? `<a href="${escapeHtml(offer.link)}" target="_blank" class="text-indigo-600 hover:underline ml-2">View Offer</a>` : ''}
-                        `;
-                        upcItemDbOffersEl.appendChild(offerDiv);
-                    });
-                }
-            }
-        }
-
 
         function populateForm(data) {
+            // Apply Tailwind classes to labels dynamically if not already set in HTML
             document.querySelectorAll('label').forEach(label => {
-                if (!label.classList.contains('block')) { 
+                if (!label.classList.contains('block')) { // Basic check
                     label.classList.add('block', 'text-sm', 'font-medium', 'text-gray-700', 'mb-1');
                 }
             });
             
-            document.querySelectorAll('input[type="text"], input[type="number"], input[type="datetime-local"], textarea, select').forEach(el => {
-                if (!el.classList.contains('mt-1')) { 
-                    el.classList.add('mt-1', 'block', 'w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'shadow-sm', 'focus:outline-none', 'focus:ring-indigo-500', 'focus:border-indigo-500', 'sm:text-sm', 'transition', 'duration-150');
-                }
-            });
-
             formElements.upc.value = data.upc || '';
             formElements.sku.value = data.sku || '';
             formElements.code_type.value = data.code_type || '';
@@ -478,8 +930,7 @@
                 const element = formElements[id];
                 if (element && element.name) { 
                     if (element.tagName === 'PRE') {
-                        // If you want to send back raw payloads, parse them here. Otherwise, skip.
-                        // For now, skipping raw payloads for update.
+                        // Skip raw payload fields for update
                     } else if (element.type === 'number') {
                         productDataToUpdate[element.name] = element.value === '' ? null : parseFloat(element.value);
                     } else if (id === 'ai_seo_keywords' || id === 'ai_key_features' || id === 'ai_unique_selling_points') {
@@ -538,6 +989,94 @@
                  .replace(/>/g, "&gt;")
                  .replace(/"/g, "&quot;")
                  .replace(/'/g, "&#039;");
+        }
+
+        // Enhanced image management functions
+        function selectAllImages() {
+            const checkboxes = document.querySelectorAll('.image-select-checkbox:not(:checked)');
+            let added = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (selectedImagesForKeeping.length + added < MAX_SELECTED_IMAGES) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                    added++;
+                }
+            });
+            
+            if (added === 0) {
+                showToast('Maximum images already selected or no more images available', 'info');
+            } else {
+                showToast(`Added ${added} images to selection`, 'success');
+            }
+        }
+
+        function deselectAllImages() {
+            const checkboxes = document.querySelectorAll('.image-select-checkbox:checked');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                checkbox.dispatchEvent(new Event('change'));
+            });
+            showToast('All images deselected', 'info');
+        }
+
+        function validateImageUrls() {
+            if (selectedImagesForKeeping.length === 0) {
+                showToast('No images selected to validate', 'info');
+                return;
+            }
+
+            let validCount = 0;
+            let invalidCount = 0;
+            const promises = selectedImagesForKeeping.map(async (img) => {
+                try {
+                    const response = await fetch(img.url, { method: 'HEAD' });
+                    if (response.ok) {
+                        validCount++;
+                    } else {
+                        invalidCount++;
+                        console.warn(`Invalid image URL: ${img.url} (Status: ${response.status})`);
+                    }
+                } catch (error) {
+                    invalidCount++;
+                    console.error(`Error checking image URL: ${img.url}`, error);
+                }
+            });
+
+            Promise.all(promises).then(() => {
+                showToast(`Validation complete: ${validCount} valid, ${invalidCount} invalid images`, 
+                         invalidCount > 0 ? 'error' : 'success');
+            });
+        }
+
+        function exportImageList() {
+            if (selectedImagesForKeeping.length === 0) {
+                showToast('No images selected to export', 'info');
+                return;
+            }
+
+            const imageData = {
+                upc: formElements.upc.value,
+                selected_images: selectedImagesForKeeping.map(img => ({
+                    url: img.url,
+                    order: img.order + 1,
+                    is_main: img.is_main,
+                    source: img.source
+                })),
+                export_timestamp: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(imageData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `product-images-${formElements.upc.value}-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Image list exported successfully', 'success');
         }
     </script>
 </body>

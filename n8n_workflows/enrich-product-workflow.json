@@ -1,0 +1,35 @@
+{
+  "name": "Enrich Product Workflow",
+  "description": "Workflow to enrich product data from various sources (eBay, Amazon, UPC databases)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enrich-product",
+        "options": {
+          "responseData": ""
+        }
+      },
+      "name": "Webhook (POST /enrich-product)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1100,
+        520
+      ],
+      "id": "f8180b37-b75c-4eef-9e7b-3b8ab628691f",
+      "typeVersion": 2,
+      "webhookId": "5b299e27-bf6e-482b-aff1-7ec65caa7ec7"
+    }
+  ],
+  "connections": {},
+  "createdAt": "2025-05-24T00:00:00.000Z",
+  "updatedAt": "2025-05-24T00:00:00.000Z",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "tags": ["baselinker", "product-enrichment"],
+  "triggerCount": 0,
+  "versionId": "1"
+}

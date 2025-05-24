@@ -1,0 +1,34 @@
+{
+  "name": "Save Product Images Workflow",
+  "description": "Workflow to save selected product images with order and main image designation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-images",
+        "options": {
+          "responseData": ""
+        }
+      },
+      "name": "Webhook (POST /product-images)",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1100,
+        520
+      ],
+      "id": "save-images-webhook",
+      "typeVersion": 2
+    }
+  ],
+  "connections": {},
+  "createdAt": "2025-05-24T00:00:00.000Z",
+  "updatedAt": "2025-05-24T00:00:00.000Z",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": {},
+  "tags": ["baselinker", "image-management"],
+  "triggerCount": 0,
+  "versionId": "1"
+}

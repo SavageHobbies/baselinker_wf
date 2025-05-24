@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>n8n Workflow Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .response-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .json-response {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 py-8">
+    <div class="container mx-auto max-w-4xl bg-white p-8 rounded-xl shadow-xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">n8n Workflow Tester</h1>
+        
+        <!-- Endpoint Configuration -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Endpoint Configuration</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
+                    <input type="text" id="baseUrl" value="https://n8n.by1.net/webhook" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Test UPC</label>
+                    <input type="text" id="testUpc" value="123456789012" placeholder="Enter UPC to test"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Buttons -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Test Workflows</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button onclick="testGetProduct()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Get Product Details
+                </button>
+                <button onclick="testEnrichProduct()" 
+                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    Enrich Product
+                </button>
+                <button onclick="testSaveImages()" 
+                        class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                    Save Images
+                </button>
+                <button onclick="testUpdateProduct()" 
+                        class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700">
+                    Update Product
+                </button>
+            </div>
+        </div>
+
+        <!-- Response Display -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Response</h2>
+            <div id="responseContainer" class="response-container border border-gray-300 rounded-md p-4 bg-gray-50">
+                <div id="responseContent" class="json-response text-sm">
+                    Click a test button to see the response...
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Display -->
+        <div id="statusContainer" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">Status</h2>
+            <div id="statusContent" class="p-4 border rounded-md">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value;
+        }
+
+        function getTestUpc() {
+            return document.getElementById('testUpc').value;
+        }
+
+        function displayResponse(title, response, status) {
+            const container = document.getElementById('responseContainer');
+            const content = document.getElementById('responseContent');
+            const statusContainer = document.getElementById('statusContainer');
+            const statusContent = document.getElementById('statusContent');
+
+            // Show response
+            content.innerHTML = `<strong>${title}</strong>\n\n${JSON.stringify(response, null, 2)}`;
+            
+            // Show status
+            statusContainer.classList.remove('hidden');
+            statusContent.innerHTML = `
+                <div class="flex items-center">
+                    <span class="inline-block w-3 h-3 rounded-full mr-2 ${status >= 200 && status < 300 ? 'bg-green-500' : 'bg-red-500'}"></span>
+                    <span class="font-medium">Status: ${status}</span>
+                    <span class="ml-4 text-sm text-gray-600">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+        }
+
+        function displayError(title, error) {
+            const content = document.getElementById('responseContent');
+            const statusContainer = document.getElementById('statusContainer');
+            const statusContent = document.getElementById('statusContent');
+
+            content.innerHTML = `<strong>${title} - ERROR</strong>\n\n${error.message || error}`;
+            
+            statusContainer.classList.remove('hidden');
+            statusContent.innerHTML = `
+                <div class="flex items-center">
+                    <span class="inline-block w-3 h-3 rounded-full mr-2 bg-red-500"></span>
+                    <span class="font-medium text-red-600">Error</span>
+                    <span class="ml-4 text-sm text-gray-600">${new Date().toLocaleTimeString()}</span>
+                </div>
+            `;
+        }
+
+        async function testGetProduct() {
+            const baseUrl = getBaseUrl();
+            const upc = getTestUpc();
+            
+            try {
+                const response = await fetch(`${baseUrl}/get-single-product-details?upc=${encodeURIComponent(upc)}`);
+                const data = await response.text();
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch (e) {
+                    parsedData = { raw_response: data, parse_error: e.message };
+                }
+                
+                displayResponse('Get Product Details', parsedData, response.status);
+            } catch (error) {
+                displayError('Get Product Details', error);
+            }
+        }
+
+        async function testEnrichProduct() {
+            const baseUrl = getBaseUrl();
+            const upc = getTestUpc();
+            
+            try {
+                const response = await fetch(`${baseUrl}/enrich-product`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ upc: upc })
+                });
+                
+                const data = await response.text();
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch (e) {
+                    parsedData = { raw_response: data, parse_error: e.message };
+                }
+                
+                displayResponse('Enrich Product', parsedData, response.status);
+            } catch (error) {
+                displayError('Enrich Product', error);
+            }
+        }
+
+        async function testSaveImages() {
+            const baseUrl = getBaseUrl();
+            const upc = getTestUpc();
+            
+            const testPayload = {
+                upc: upc,
+                selected_images: [
+                    {
+                        url: "https://via.placeholder.com/300x200.png?text=Test+Image+1",
+                        order: 1,
+                        is_main: true,
+                        source: "test"
+                    },
+                    {
+                        url: "https://via.placeholder.com/300x200.png?text=Test+Image+2",
+                        order: 2,
+                        is_main: false,
+                        source: "test"
+                    }
+                ]
+            };
+            
+            try {
+                const response = await fetch(`${baseUrl}/product-images`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPayload)
+                });
+                
+                const data = await response.text();
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch (e) {
+                    parsedData = { raw_response: data, parse_error: e.message };
+                }
+                
+                displayResponse('Save Images', { request: testPayload, response: parsedData }, response.status);
+            } catch (error) {
+                displayError('Save Images', error);
+            }
+        }
+
+        async function testUpdateProduct() {
+            const baseUrl = getBaseUrl();
+            const upc = getTestUpc();
+            
+            const testPayload = {
+                upc: upc,
+                title: "Test Product Update",
+                description: "This is a test update from the workflow tester",
+                price: 29.99,
+                quantity: 100
+            };
+            
+            try {
+                const response = await fetch(`${baseUrl}/edit-update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPayload)
+                });
+                
+                const data = await response.text();
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(data);
+                } catch (e) {
+                    parsedData = { raw_response: data, parse_error: e.message };
+                }
+                
+                displayResponse('Update Product', { request: testPayload, response: parsedData }, response.status);
+            } catch (error) {
+                displayError('Update Product', error);
+            }
+        }
+
+        // Add some helpful keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        testGetProduct();
+                        break;
+                    case '2':
+                        e.preventDefault();
+                        testEnrichProduct();
+                        break;
+                    case '3':
+                        e.preventDefault();
+                        testSaveImages();
+                        break;
+                    case '4':
+                        e.preventDefault();
+                        testUpdateProduct();
+                        break;
+                }
+            }
+        });
+
+        // Display keyboard shortcuts
+        console.log('Keyboard shortcuts:');
+        console.log('Ctrl+1: Test Get Product Details');
+        console.log('Ctrl+2: Test Enrich Product');
+        console.log('Ctrl+3: Test Save Images');
+        console.log('Ctrl+4: Test Update Product');
+    </script>
+</body>
+</html>
