@@ -334,7 +334,18 @@
                     showToast(`Error fetching product: ${response.statusText}`, 'error');
                     return;
                 }
-                const productDataArray = await response.json();
+                
+                const responseText = await response.text();
+
+                if (responseText.trim() === '') {
+                    productNotFoundMessage.textContent = 'Product details are currently unavailable for this item (empty response from server).';
+                    productNotFoundMessage.classList.remove('hidden');
+                    showToast('Empty response from server.', 'info'); // Optional: user feedback
+                    return;
+                }
+
+                // Now parse the non-empty text
+                const productDataArray = JSON.parse(responseText); // This is inside the try...catch block
                 const productData = Array.isArray(productDataArray) && productDataArray.length > 0 ? productDataArray[0] : productDataArray;
 
                 if (productData && typeof productData === 'object' && Object.keys(productData).length > 0) {
