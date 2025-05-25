@@ -1,0 +1,7 @@
+# Folders
+/vendor
+
+# Files
+.php-cs-fixer.cache
+.phpunit.result.cache
+composer.lock

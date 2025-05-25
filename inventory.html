@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-TF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Product Inventory</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -93,7 +93,7 @@
         // --- CONFIGURATION ---
         const N8N_GET_ALL_PRODUCTS_URL = 'https://n8n.by1.net/webhook/full-inventory'; 
         const N8N_ENRICH_PRODUCT_URL = 'https://n8n.by1.net/webhook/enrich-product';
-        const PRODUCT_DETAIL_PAGE_URL = '/product_detail.html'; // UPDATED: Filename with underscore and root-relative
+        const PRODUCT_DETAIL_PAGE_URL = '/product_detail.html';
 
         refreshInventoryButton.addEventListener('click', fetchInventory);
 
@@ -177,7 +177,6 @@
 
                 Array.from(row.getElementsByClassName('product-data-cell')).forEach(cell => {
                     cell.addEventListener('click', () => {
-                        // Ensure PRODUCT_DETAIL_PAGE_URL starts with '/' if it's root-relative
                         const detailPageUrl = PRODUCT_DETAIL_PAGE_URL.startsWith('/') ? PRODUCT_DETAIL_PAGE_URL : `/${PRODUCT_DETAIL_PAGE_URL}`;
                         window.location.href = `${detailPageUrl}?upc=${encodeURIComponent(productUpcString)}`;
                     });
@@ -258,14 +257,11 @@
             }
 
             try {
-                console.log(`Fetching inventory from: ${N8N_GET_ALL_PRODUCTS_URL}`);
+                console.log(`Workspaceing inventory from: ${N8N_GET_ALL_PRODUCTS_URL}`);
                 const response = await fetch(N8N_GET_ALL_PRODUCTS_URL);
                 
-                console.log('Inventory Fetch Response Status:', response.status);
-                const responseText = await response.text();
-                console.log('Inventory Fetch Raw Response Text:', responseText);
-
                 if (!response.ok) {
+                    const responseText = await response.text();
                     console.error("Error fetching inventory - Status:", response.status, "Response Text:", responseText);
                     showToast(`Error fetching inventory: ${response.statusText} (Status: ${response.status})`, 'error');
                     inventoryTableContainer.innerHTML = `<p class="text-red-500 text-center p-4">Failed to load inventory. Server returned: ${response.status} ${response.statusText}. Check console for more details.</p>`;
@@ -274,9 +270,9 @@
 
                 let responseData;
                 try {
-                    responseData = JSON.parse(responseText);
-                    console.log('Inventory Fetch Parsed Response Data:', responseData);
+                    responseData = await response.json();
                 } catch (e) {
+                    const responseText = await response.text();
                     console.error('Failed to parse JSON response from inventory webhook:', e, "Raw text was:", responseText);
                     inventoryTableContainer.innerHTML = `<p class="text-red-500 text-center p-4">Failed to parse inventory data. Invalid JSON received. Check console.</p>`;
                     showToast('Error parsing inventory data.', 'error');
@@ -301,30 +297,7 @@
 
             } catch (err) {
                 console.error('Fetch inventory network/script error object:', err); 
-                let userErrorMessage = 'Failed to fetch inventory. A network error occurred or the server is unreachable.';
-                
-                if (err instanceof TypeError) { 
-                    userErrorMessage = 'Network Error: Could not connect to the server. This is often a CORS issue or the server/webhook is not reachable/active.';
-                } else if (err.message) {
-                    userErrorMessage = `Script Error: ${err.message}.`;
-                } else {
-                    try {
-                        let errorDetails = [];
-                        for (const prop of Object.getOwnPropertyNames(err)) {
-                            errorDetails.push(`${prop}: ${err[prop]}`);
-                        }
-                        if (errorDetails.length > 0) {
-                             userErrorMessage = `An unknown error occurred: { ${errorDetails.join(', ')} }.`;
-                        } else {
-                            userErrorMessage = `An unknown error occurred: ${err.toString()}.`;
-                        }
-                    } catch (stringifyError) {
-                        userErrorMessage = `An unknown error occurred, and it could not be stringified.`;
-                    }
-                }
-                userErrorMessage += " PLEASE CHECK THE BROWSER'S DEVELOPER CONSOLE (NETWORK TAB) FOR SPECIFIC ERROR DETAILS (e.g., CORS, 404, connection refused).";
-
-                console.error('Detailed error message for user:', userErrorMessage);
+                let userErrorMessage = 'Failed to fetch inventory. A network error occurred or the server is unreachable. Check the browser console (Network tab) for CORS or connection errors.';
                 showToast(userErrorMessage, 'error');
                 inventoryTableContainer.innerHTML = `<p class="text-red-500 text-center p-4">${escapeHtml(userErrorMessage)}</p>`;
             } finally {
