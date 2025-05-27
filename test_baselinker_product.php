@@ -2,10 +2,20 @@
 
 require_once __DIR__ . '/baselinker_api/vendor/autoload.php';
 
+// Add these lines for dotenv
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+} else {
+    // Fallback or error handling if .env is missing, though for this task we assume it will be present.
+    // For now, let's die if .env is not found, to make it clear.
+    die('.env file not found. Please create one based on .env.example.');
+}
+
 use Baselinker\Baselinker;
 
 // Configuration
-define('BASELINKER_API_TOKEN', '8002043-8022066-YE18MFRCWOF6M64RTEOAEEOPYCM4MMYYM5R4X6JP77T6D1YTL4JHF0RJ1DEA6RMH');
+define('BASELINKER_API_TOKEN', getenv('BASELINKER_API_TOKEN'));
 define('BASELINKER_INVENTORY_ID', '35120');
 
 // Helper function for logging
