@@ -41,6 +41,7 @@ class Client
             'base_uri' => $this->getApiUrl(),
             RequestOptions::CONNECT_TIMEOUT => 10,
             RequestOptions::TIMEOUT => 30,
+            RequestOptions::VERIFY => false, // Disable SSL verification (for development only)
         ]);
     }
 

@@ -1,35 +1,677 @@
 {
-  "name": "Enrich Product Workflow",
-  "description": "Workflow to enrich product data from various sources (eBay, Amazon, UPC databases)",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "enrich-product",
+        "path": "scan-upc",
         "options": {
           "responseData": ""
         }
       },
-      "name": "Webhook (POST /enrich-product)",
+      "name": "Webhook (POST /scan-upc)",
       "type": "n8n-nodes-base.webhook",
       "position": [
-        -1100,
-        520
+        -660,
+        -100
       ],
-      "id": "f8180b37-b75c-4eef-9e7b-3b8ab628691f",
+      "id": "202a95c1-e49d-45f6-9f93-77f6511267ee",
       "typeVersion": 2,
       "webhookId": "5b299e27-bf6e-482b-aff1-7ec65caa7ec7"
+    },
+    {
+      "parameters": {
+        "url": "https://api.ebay.com/buy/browse/v1/item_summary/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "gtin",
+              "value": "={{ $json.upc }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-EBAY-C-MARKETPLACE-ID",
+              "value": "EBAY-US"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "597cca52-1303-46af-a9ca-6341f9a69f7a",
+      "name": "API Call: eBay Browse API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        -220
+      ],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "uyDoEPeMUvATmqb9",
+          "name": "eBay Dev Connection"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.upcitemdb.com/prod/trial/lookup",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"upc\": $json.upc }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "ece646e9-a5f7-4be0-9b4a-4729684035d7",
+      "name": "API Call: UPCitemdb",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -180,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0b0d3deb-5cf8-4bc0-a8b3-f989b0bc1862",
+              "name": "upcitemdb_api_output",
+              "value": "={{ $json }}",
+              "type": "json"
+            },
+            {
+              "id": "dff30919-cc41-4eb2-be4d-bc607c7adbdf",
+              "name": "id",
+              "value": "={{ $items(\"Set: Store eBay Output\").first().json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "0e874c29-5131-4b03-947c-72d7ddc1e37c",
+              "name": "upc",
+              "value": "={{ $items(\"Set: Store eBay Output\").first().json.upc }}",
+              "type": "string"
+            },
+            {
+              "id": "ea0495e4-946a-4852-8ba9-194a85239258",
+              "name": "name",
+              "value": "={{ $items(\"Set: Store eBay Output\").first().json.name || $items(\"Set: Store eBay Output\").first().json[\"name \"] }}",
+              "type": "string"
+            },
+            {
+              "id": "58a90426-9250-43cb-a1a6-6dd8d45b7826",
+              "name": "amazonData",
+              "value": "={{ $items(\"Set: Store eBay Output\").first().json.amazonData }}",
+              "type": "object"
+            },
+            {
+              "id": "e27175b6-c2fa-4bee-84ff-6ac210d37690",
+              "name": "ebay_api_output",
+              "value": "={{ $items(\"Set: Store eBay Output\").first().json.ebay_api_output }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        40,
+        0
+      ],
+      "id": "2f199443-62ff-4b70-b241-e9e45e97296b",
+      "name": "Set: Store UPCitemdb Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "let productData = {\n  id: null,\n  upc: null,\n  name: null,\n\n  am_title: null,\n  am_brand: null,\n  am_price: null,\n  am_currency: null,\n  am_imageUrl: null,\n  am_features: [],\n  am_error: null,\n  raw_amazon: null,\n\n  eb_title: null,\n  eb_price: null,\n  eb_currency: null,\n  eb_imageUrl: null,\n  eb_condition: null,\n  eb_epid: null,\n  eb_watchCount: null,\n  eb_sellerUsername: null,\n  eb_itemLocation: null,\n  eb_error: null,\n  raw_ebay: null,\n\n  upcdb_title: null,\n  upcdb_brand: null,\n  upcdb_description: null,\n  upcdb_imageUrl: null,\n  upcdb_offers: [],\n  upcdb_lowestPrice: null,\n  upcdb_highestPrice: null,\n  upcdb_offerCount: 0,\n  upcdb_error: null,\n  raw_upcitemdb: null,\n\n  all_collected_image_urls: [],\n\n  ai_optimized_title: null,\n  ai_optimized_description: null,\n  ai_seo_keywords: [],\n  ai_sales_summary: null,\n\n  enrichment_status: 'pending_processing',\n  last_api_error_source: null,\n  last_api_error_message: null\n};\n\nconst incomingItem = $input.item;\n\nif (!incomingItem || typeof incomingItem.json === 'undefined') {\n  console.error(\"Code: Merge All Data - No valid JSON payload in the incoming item.\");\n  productData.enrichment_status = 'error_no_input_to_merge_node';\n  return [{ json: productData }];\n}\n\nconst allData = incomingItem.json;\n\nproductData.id = allData.id || null;\nproductData.upc = allData.upc || null;\nproductData.name = allData.name || allData[\"name \"] || null;\n\n// --- Process Amazon Data ---\nif (allData.amazonData) {\n  let amazonSourceData;\n  if (typeof allData.amazonData === 'string') {\n    try {\n      amazonSourceData = JSON.parse(allData.amazonData);\n      productData.raw_amazon = allData.amazonData;\n    } catch (e) {\n      console.error(\"Failed to parse amazonData string: \", e);\n      productData.am_error = \"Failed to parse raw Amazon data\";\n      amazonSourceData = { error: true, message: productData.am_error };\n    }\n  } else {\n    amazonSourceData = allData.amazonData;\n    productData.raw_amazon = JSON.stringify(allData.amazonData);\n  }\n\n  if (amazonSourceData.error || (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) ) {\n    let errorMsg = 'Unknown Amazon API error';\n    if (amazonSourceData.error && amazonSourceData.message) { \n        errorMsg = typeof amazonSourceData.message === 'string' ? amazonSourceData.message : JSON.stringify(amazonSourceData.message);\n    } else if (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) {\n        errorMsg = amazonSourceData.items[0].message || JSON.stringify(amazonSourceData.items[0].error);\n    }\n    productData.am_error = errorMsg;\n    productData.last_api_error_source = productData.last_api_error_source || 'amazon';\n    productData.last_api_error_message = productData.last_api_error_message || productData.am_error;\n  } else if (amazonSourceData.items && amazonSourceData.items.length > 0) {\n    const amItem = amazonSourceData.items[0];\n    productData.am_title = amItem.attributes?.item_name?.[0]?.value || null;\n    productData.am_brand = amItem.attributes?.brand?.[0]?.value || null;\n    if (amItem.attributes?.list_price?.[0]) {\n        productData.am_price = parseFloat(amItem.attributes.list_price[0].value);\n        productData.am_currency = amItem.attributes.list_price[0].currency;\n    } else if (amItem.attributes?.item_price?.[0]) { \n        productData.am_price = parseFloat(amItem.attributes.item_price[0].value);\n        productData.am_currency = amItem.attributes.item_price[0].currency;\n    }\n    productData.am_imageUrl = amItem.images?.[0]?.images?.[0]?.link || null;\n    productData.am_features = amItem.attributes?.bullet_point?.map(bp => bp.value) || [];\n  } else if (amazonSourceData.skipped) { \n    productData.am_error = `Skipped: ${amazonSourceData.reason || 'Unknown reason'}`;\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'amazonData' property not found.\");\n}\n\n// --- Process eBay Data ---\nif (allData.ebay_api_output) { \n  let ebaySourceData;\n  if (typeof allData.ebay_api_output === 'string') {\n    try {\n      ebaySourceData = JSON.parse(allData.ebay_api_output);\n      productData.raw_ebay = allData.ebay_api_output;\n    } catch (e) {\n      console.error(\"Failed to parse ebay_api_output string: \", e);\n      productData.eb_error = \"Failed to parse raw eBay data\";\n      ebaySourceData = { errors: [{ message: productData.eb_error }] };\n    }\n  } else {\n    ebaySourceData = allData.ebay_api_output;\n    productData.raw_ebay = JSON.stringify(allData.ebay_api_output);\n  }\n\n  if (ebaySourceData.errors && ebaySourceData.errors.length > 0) { \n    productData.eb_error = ebaySourceData.errors[0]?.message || 'Unknown eBay API error';\n    productData.last_api_error_source = productData.last_api_error_source || 'ebay';\n    productData.last_api_error_message = productData.last_api_error_message || productData.eb_error;\n  } else if (ebaySourceData.itemSummaries && ebaySourceData.itemSummaries.length > 0) {\n    const ebItem = ebaySourceData.itemSummaries[0]; \n    productData.eb_title = ebItem.title || null;\n    if (ebItem.price) {\n        productData.eb_price = parseFloat(ebItem.price.value);\n        productData.eb_currency = ebItem.price.currency;\n    }\n    productData.eb_imageUrl = ebItem.image?.imageUrl || null;\n    productData.eb_condition = ebItem.condition || null;\n    productData.eb_epid = ebItem.epid || null;\n    productData.eb_watchCount = ebItem.watchCount ? parseInt(ebItem.watchCount, 10) : 0;\n    productData.eb_sellerUsername = ebItem.seller?.username || null;\n    if (ebItem.itemLocation) {\n        productData.eb_itemLocation = `${ebItem.itemLocation.city || ''} ${ebItem.itemLocation.stateOrProvince || ''} ${ebItem.itemLocation.country || ''}`.trim() || null;\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'ebay_api_output' property not found.\");\n}\n\n// --- Process UPCitemdb Data ---\nif (allData.upcitemdb_api_output) {\n  const upcDbSourceData = allData.upcitemdb_api_output;\n  productData.raw_upcitemdb = JSON.stringify(upcDbSourceData);\n\n  if (upcDbSourceData.code && upcDbSourceData.code.toUpperCase() !== 'OK') {\n    productData.upcdb_error = upcDbSourceData.message || `UPCitemdb API error code: ${upcDbSourceData.code}`;\n    productData.last_api_error_source = productData.last_api_error_source || 'upcitemdb';\n    productData.last_api_error_message = productData.last_api_error_message || productData.upcdb_error;\n  } else if (upcDbSourceData.items && upcDbSourceData.items.length > 0) {\n    const upcDbItem = upcDbSourceData.items[0]; \n    productData.upcdb_title = upcDbItem.title || null;\n    productData.upcdb_brand = upcDbItem.brand || null;\n    productData.upcdb_description = upcDbItem.description || null;\n    productData.upcdb_imageUrl = upcDbItem.images?.[0] || null; \n\n    if (upcDbItem.offers && upcDbItem.offers.length > 0) {\n      productData.upcdb_offerCount = upcDbItem.offers.length;\n      productData.upcdb_offers = upcDbItem.offers.map(offer => ({\n        merchant: offer.merchant, \n        domain: offer.domain, \n        title: offer.title, \n        currency: offer.currency,\n        list_price: offer.list_price ? parseFloat(offer.list_price) : null,\n        price: offer.price ? parseFloat(offer.price) : null,\n        shipping: offer.shipping, \n        condition: offer.condition, \n        updated_t: offer.updated_t\n      }));\n      const prices = upcDbItem.offers\n        .map(o => o.price ? parseFloat(o.price) : null) \n        .filter(p => p !== null && !isNaN(p));\n      if (prices.length > 0) {\n        productData.upcdb_lowestPrice = Math.min(...prices);\n        productData.upcdb_highestPrice = Math.max(...prices);\n      }\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'upcitemdb_api_output' property not found.\");\n}\n\n// --- NEW: Image Aggregation ---\nlet amazonImageUrls = [];\nif (productData.raw_amazon) {\n    let amData;\n    try {\n        amData = (typeof productData.raw_amazon === 'string') ? JSON.parse(productData.raw_amazon) : productData.raw_amazon;\n        if (amData && amData.items && amData.items[0] && Array.isArray(amData.items[0].all_image_links)) {\n            amazonImageUrls = amData.items[0].all_image_links.filter(url => typeof url === 'string' && url.trim() !== '');\n        } else if (productData.am_imageUrl) {\n            amazonImageUrls.push(productData.am_imageUrl);\n        }\n    } catch (e) {\n        console.error(\"Error processing Amazon image data:\", e);\n        if (productData.am_imageUrl) amazonImageUrls.push(productData.am_imageUrl);\n    }\n} else if (productData.am_imageUrl) {\n    amazonImageUrls.push(productData.am_imageUrl);\n}\n\nlet ebayImageUrls = [];\nif (productData.raw_ebay) {\n    let ebData;\n    try {\n        ebData = (typeof productData.raw_ebay === 'string') ? JSON.parse(productData.raw_ebay) : productData.raw_ebay;\n        if (ebData && ebData.itemSummaries && ebData.itemSummaries[0]) {\n            const ebItem = ebData.itemSummaries[0];\n            if (ebItem.additionalImages && Array.isArray(ebItem.additionalImages)) {\n                ebayImageUrls = ebItem.additionalImages.map(img => img.imageUrl).filter(url => typeof url === 'string' && url.trim() !== '');\n            }\n            if (ebItem.image && ebItem.image.imageUrl && !ebayImageUrls.includes(ebItem.image.imageUrl)) {\n                ebayImageUrls.unshift(ebItem.image.imageUrl); // Add primary image to the front\n            }\n        }\n    } catch (e) {\n        console.error(\"Error processing eBay image data:\", e);\n    }\n} else if (productData.eb_imageUrl) {\n    ebayImageUrls.push(productData.eb_imageUrl);\n}\n\nlet allCollectedImageUrls = [];\nif (productData.upcdb_imageUrl && typeof productData.upcdb_imageUrl === 'string' && productData.upcdb_imageUrl.trim() !== '') {\n    allCollectedImageUrls.push(productData.upcdb_imageUrl);\n}\nallCollectedImageUrls = allCollectedImageUrls.concat(amazonImageUrls, ebayImageUrls);\nproductData.all_collected_image_urls = [...new Set(allCollectedImageUrls.filter(Boolean))];\n\n\n// --- Set Final Enrichment Status ---\nif (!productData.id && !productData.upc) {\n  productData.enrichment_status = 'error_missing_identifier';\n} else if (productData.am_error || productData.eb_error || productData.upcdb_error) {\n  if (productData.am_error && productData.last_api_error_source === 'amazon') {\n    productData.enrichment_status = `data_merged_with_errors_api_amazon`;\n  } else if (productData.eb_error && productData.last_api_error_source === 'ebay') {\n    productData.enrichment_status = `data_merged_with_errors_api_ebay`;\n  } else if (productData.upcdb_error && productData.last_api_error_source === 'upcitemdb') {\n    productData.enrichment_status = `data_merged_with_errors_api_upcitemdb`;\n  } else { \n      productData.enrichment_status = `data_merged_with_errors_api_${productData.last_api_error_source || 'unknown'}`;\n  }\n} else {\n  productData.enrichment_status = 'data_merged_pending_ai';\n}\n\n\nreturn [{ json: productData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "5e04b520-4c28-4988-8fbc-d7d2ec937cc6",
+      "name": "Code: Merge All Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This Code node receives input from \"Extract Essential Data\"\n// and also needs access to N8N environment variables for credentials.\nconst item = $input.first().json;\n\n// Retrieve environment variables. N8N makes these available to Code nodes.\n// Ensure these are correctly set in your N8N's .env file or environment.\nconst refreshToken = $env.AMAZON_SPAPI_REFRESH_TOKEN;\nconst clientId = $env.SELLING_PARTNER_APP_CLIENT_ID;\nconst clientSecret = $env.SELLING_PARTNER_APP_CLIENT_SECRET;\n\n// Get values from the incoming item\nconst upc = item.upc === null || typeof item.upc === 'undefined' ? 'null' : String(item.upc);\nconst id = item.id === null || typeof item.id === 'undefined' ? 'null' : String(item.id);\n\n// For the name, ensure it's a string and escape any double quotes within it for shell safety\n// The String() constructor handles null/undefined gracefully, converting them to \"null\" or \"undefined\"\n// We then explicitly check for these string values if we want to pass the literal string 'null'.\nlet nameValue = 'null'; // Default to the string 'null'\nif (item.name !== null && typeof item.name !== 'undefined') {\n    // Ensure item.name is treated as a string, then escape double quotes.\n    // The original replace was /\\\"/g, which is correct for replacing double quotes.\n    // The \\\\\" is for the shell to see a literal quote if the name itself had one.\n    // However, for the command string itself, we need to make sure the quotes in the name are escaped\n    // so they don't break the quoting of the argument itself.\n    nameValue = String(item.name).replace(/\"/g, '\\\\\"'); \n}\n\n// Construct the full command string\n// Single quotes are used around each VAR=VALUE pair for the `env` utility.\n// Double quotes are used around each command-line argument for the Node.js script.\nconst command = `env 'AMAZON_SPAPI_REFRESH_TOKEN=${refreshToken}' 'SELLING_PARTNER_APP_CLIENT_ID=${clientId}' 'SELLING_PARTNER_APP_CLIENT_SECRET=${clientSecret}' node /scripts_for_n8n/lookup_product.js \"${upc}\" \"${id}\" \"${nameValue}\"`;\n\n// Prepare the output item for the next node\n// We pass along the original item data and add the commandToExecute\nconst outputJson = {\n  ...item, // Pass through original id, upc, name etc. from the input to this node\n  commandToExecute: command\n};\n\nreturn [{ json: outputJson }];\n"
+      },
+      "name": "Build Amazon API Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -180,
+        -220
+      ],
+      "id": "c724c7dc-d5e3-48b8-97d4-2e8a7815b6ec"
+    },
+    {
+      "parameters": {
+        "command": "={{$json.commandToExecute}}"
+      },
+      "name": "Execute Amazon SP-API Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        40,
+        -220
+      ],
+      "id": "b7f49bca-05df-45e5-8ebb-a9754009dce0",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input to this node is the output of the \"Execute Amazon SP-API Script1\" node.\n// item.json from this input contains:\n//   - id, upc, name, commandToExecute (passed from \"Build Amazon API Command1\")\n//   - stdout, stderr, exitCode (from the execution of lookup_product.js)\n// The stdout string itself is already the desired JSON structure: \n//   { \"id\": \"...\", \"upc\": \"...\", \"name\": \"...\", \"amazonData\": { ...results... } }\n\nconst items = $input.all(); // Should typically be one item.\nconst resultItems = [];\n\nfor (const item of items) {\n    // item.json contains all fields from the Execute Command node's output.\n    const inputFromExecuteCmd = item.json; \n    let finalJsonOutput = {};\n\n    try {\n        if (inputFromExecuteCmd.stdout && typeof inputFromExecuteCmd.stdout === 'string' && inputFromExecuteCmd.stdout.trim() !== '') {\n            // The stdout from your script is already the correctly structured JSON.\n            // We just need to parse it and this becomes our main output.\n            finalJsonOutput = JSON.parse(inputFromExecuteCmd.stdout);\n        } else {\n            // stdout is missing or empty. This is an error condition.\n            // We should preserve the original id, upc, name if possible, and add error info.\n            // These original fields (id, upc, name) were part of the input to the Execute Command node,\n            // and the Execute Command node passes them through in its output item.\n            console.warn(\"Parse Amazon Script Output1: No valid stdout received from Execute Command node.\");\n            finalJsonOutput = { \n                id: inputFromExecuteCmd.id,     // Original ID from input to Execute Command\n                upc: inputFromExecuteCmd.upc,   // Original UPC from input to Execute Command\n                name: inputFromExecuteCmd.name, // Original Name from input to Execute Command\n                error: true, \n                source: 'parse-amazon-script-output', \n                message: 'No valid stdout from Execute Command for Amazon script.',\n                details: { \n                    stderr: inputFromExecuteCmd.stderr,\n                    exitCode: inputFromExecuteCmd.exitCode \n                }\n            };\n        }\n    } catch (e) {\n        // Error parsing the stdout JSON.\n        console.error(\"Parse Amazon Script Output1: Failed to parse JSON from stdout.\", e.message);\n        // Preserve original id, upc, name from the input to the Execute Command node.\n        finalJsonOutput = { \n            id: inputFromExecuteCmd.id,   // Corrected: Use inputFromExecuteCmd\n            upc: inputFromExecuteCmd.upc, // Corrected: Use inputFromExecuteCmd\n            name: inputFromExecuteCmd.name, // Corrected: Use inputFromExecuteCmd\n            error: true, \n            source: 'parse-amazon-script-output', \n            message: 'Failed to parse JSON from Amazon script stdout.', \n            details: e.message, \n            raw_stdout: inputFromExecuteCmd.stdout \n        };\n    }\n    resultItems.push({ json: finalJsonOutput });\n}\n\nreturn resultItems;\n"
+      },
+      "name": "Parse Amazon Script Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        -220
+      ],
+      "id": "d5a35888-a0ed-4ef8-a7de-fc2c94ce7808",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": []
+        },
+        "includeOtherFields": true,
+        "include": "except",
+        "excludeFields": "envRefreshToken,clientId,clientSecret,commandToExecute",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        -220
+      ],
+      "id": "da219d0b-4575-4ada-9842-6574f9b9fd2f",
+      "name": "Set: Clean Amazon Output (and pass amazonData)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0b0d3deb-5cf8-4bc0-a8b3-f989b0bc1862",
+              "name": "ebay_api_output",
+              "value": "={{ $json }}",
+              "type": "json"
+            },
+            {
+              "id": "1f9a4286-90ec-4a77-8b1e-da9279ecc112",
+              "name": "id",
+              "value": "={{ $items(\"Set: Clean Amazon Output (and pass amazonData)\").first().json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "e66a7b86-b4d3-40d7-beb2-2a7778788681",
+              "name": "upc",
+              "value": "={{ $items(\"Set: Clean Amazon Output (and pass amazonData)\").first().json.upc }}",
+              "type": "string"
+            },
+            {
+              "id": "b68f1b28-5e38-48a4-8e4e-aee4e760a835",
+              "name": "name ",
+              "value": "={{ $items(\"Set: Clean Amazon Output (and pass amazonData)\").first().json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "8da53c05-c0c7-4005-8d75-33d987e6224d",
+              "name": "amazonData",
+              "value": "={{ $items(\"Set: Clean Amazon Output (and pass amazonData)\").first().json.amazonData }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "7d62bf84-5be7-4e28-b8b0-17038ac2b18b",
+      "name": "Set: Store eBay Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract only essential data from webhook input\nconst items = $input.all();\n\nif (!items || items.length === 0) {\n  console.warn(\"Extract Essential Data: No input items received. Returning empty array.\");\n  return []; \n}\n\nconst firstItem = items[0];\n\n// Check if the first item and its json property are valid\nif (!firstItem || typeof firstItem.json === 'undefined') {\n  console.warn(\"Extract Essential Data: First input item is invalid or has no json property. Returning an error item.\");\n  // Return an item with an error structure if the input is not as expected\n  return [{ json: { \n    error: \"Invalid input item structure to Extract Essential Data node\", \n    receivedInput: firstItem // Include the received input for debugging\n  } }];\n}\n\nlet dataToProcess = firstItem.json;\n\n// Check if the actual payload is nested under a 'body' property of the main JSON payload\n// This is common for webhook data.\nif (dataToProcess && typeof dataToProcess.body === 'object' && dataToProcess.body !== null) {\n  dataToProcess = dataToProcess.body;\n} else {\n  // If not nested under 'body', assume dataToProcess itself is the direct payload\n  // or that there's no further nesting to do.\n  // console.warn(\"Extract Essential Data: 'body' property not found in firstItem.json, or it's not an object. Processing firstItem.json directly.\");\n}\n\n// Ensure dataToProcess is an object before trying to access properties from it\n// This handles cases where dataToProcess.body might not exist or is not an object.\nif (typeof dataToProcess !== 'object' || dataToProcess === null) {\n  console.warn(\"Extract Essential Data: Processable data (after attempting to access .body) is not an object. Defaulting to empty object for essentialData creation.\");\n  // If dataToProcess is not an object at this point (e.g., if firstItem.json was a primitive or firstItem.json.body was not an object),\n  // assign an empty object to prevent errors when accessing .id, .upc, .name.\n  dataToProcess = {}; \n}\n\n// Create a new simplified object with only what we need\nconst essentialData = {\n  id: dataToProcess.id || null,\n  upc: dataToProcess.upc || null,\n  name: dataToProcess.name || null\n};\n\n// Return the simplified data in the format N8N expects: an array of objects,\n// where each object has a 'json' property.\nreturn [{ json: essentialData }];\n"
+      },
+      "name": "Extract Essential Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -400,
+        -220
+      ],
+      "id": "6d5809b5-a4ba-4a5d-8604-b2a711d4bcb1",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        400
+      ],
+      "id": "e01860df-e706-48a2-a66f-e09659290728",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "IONpyAhTFAkMw7aY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=={{ $json.originalProductData.id || $json.originalProductData.upc }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        420
+      ],
+      "id": "94fa6947-4f77-4eb9-b3b2-429a17aeb970",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=={{ $json.promptForAI }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -420,
+        240
+      ],
+      "id": "3a54e41e-fcdd-4597-8fa4-d224e6c0370e",
+      "name": "CPI Enhancer"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input to this node is the output from \"Code: Merge All Data\"\n// $input.item.json will be your productData object\nconst product = $input.item.json;\n\n// Extract necessary details from productData (adjust paths as needed)\nconst title = product.upcdb_title || product.eb_title || product.am_title || product.name || \"N/A\";\nconst description = product.upcdb_description || product.am_title || product.eb_title || \"Not available\";\nconst upc = product.upc || \"N/A\";\nconst brand = product.upcdb_brand || product.am_brand || product.eb_sellerUsername || \"N/A\";\nconst model = product.model || product.upcdb_model || product.am_attributes?.model_number?.[0]?.value || \"N/A\";\nconst color = product.color || product.upcdb_color || product.am_attributes?.color?.[0]?.value || \"N/A\";\nconst size = product.size || product.upcdb_size || product.am_attributes?.size?.[0]?.value || \"N/A\";\nconst dimension = product.dimension || product.upcdb_dimension || \"N/A\";\nconst weight = product.weight || product.upcdb_weight || (product.am_attributes?.item_weight?.[0]?.value ? `${product.am_attributes.item_weight[0].value} ${product.am_attributes.item_weight[0].unit}` : \"N/A\");\nconst images = product.images || product.upcdb_imageUrl || product.am_imageUrl || product.eb_imageUrl || \"N/A\";\nconst condition = product.condition || product.eb_condition || product.am_attributes?.condition_type?.[0]?.value || \"New\";\n\nconst tagKeywordsArray = [\n    title === \"N/A\" ? null : title,\n    brand === \"N/A\" ? null : brand,\n    model === \"N/A\" ? null : model,\n    color === \"N/A\" ? null : color,\n    size === \"N/A\" ? null : size,\n    product.upcdb_category ? product.upcdb_category.split(' > ').pop() : null,\n    \"Funko Pop\",\n    \"Collectible\"\n].filter(Boolean);\nconst tagKeywords = tagKeywordsArray.join(\", \");\n\nlet additionalAttributesString = \"\";\nconst knownFieldsForPrompt = ['id', 'upc', 'name', 'am_title', 'am_brand', 'am_price', 'am_currency', 'am_imageUrl', 'am_features', 'am_error', 'raw_amazon', 'eb_title', 'eb_price', 'eb_currency', 'eb_imageUrl', 'eb_condition', 'eb_epid', 'eb_watchCount', 'eb_sellerUsername', 'eb_itemLocation', 'eb_error', 'raw_ebay', 'upcdb_title', 'upcdb_brand', 'upcdb_description', 'upcdb_imageUrl', 'upcdb_offers', 'upcdb_lowestPrice', 'upcdb_highestPrice', 'upcdb_offerCount', 'upcdb_error', 'raw_upcitemdb', 'ai_optimized_title', 'ai_optimized_description', 'ai_seo_keywords', 'ai_sales_summary', 'enrichment_status', 'last_api_error_source', 'last_api_error_message', 'quantity', 'title', 'brand', 'model', 'color', 'size', 'dimension', 'weight', 'images', 'condition', 'description'];\n\nfor (const key in product) {\n    if (product.hasOwnProperty(key) && product[key] !== null && product[key] !== undefined && String(product[key]).trim() !== \"\") {\n        if (!knownFieldsForPrompt.includes(key) && !key.startsWith('raw_') && !key.endsWith('_error') && !key.includes('status') && key !== 'upcdb_offers') {\n            if (typeof product[key] === 'object' && !Array.isArray(product[key])) {\n                // Skip\n            } else if (Array.isArray(product[key]) && product[key].length === 0) {\n                // Skip\n            } else {\n                 additionalAttributesString += `${key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())}: ${Array.isArray(product[key]) ? product[key].join(', ') : product[key]}\\n`;\n            }\n        }\n    }\n}\nadditionalAttributesString = additionalAttributesString.trim() || \"N/A\";\n\nconst promptForAI = `You are an AI assistant that generates product listing content.\nBased on the Product Details provided below, generate the content for the specified JSON keys.\n\nProduct Details:\nTitle: ${title}\nUPC: ${upc}\nBrand: ${brand}\nModel: ${model}\nColor: ${color}\nSize: ${size}\nDimensions: ${dimension}\nWeight: ${weight}\nCurrent Description: ${description}\nImage URLs (if available): ${images}\nCondition: ${condition}\nRelevant Keywords to consider: ${tagKeywords}\nOther Available Data:\n${additionalAttributesString}\n\nMANDATORY RESPONSE FORMATTING INSTRUCTIONS:\n1. Your entire response MUST be a single, valid JSON object.\n2. The JSON object MUST start with an opening curly brace '{' and end with a closing curly brace '}'.\n3. DO NOT include any text, explanations, conversational phrases, or markdown formatting (like \\`\\`\\`json or \\`\\`\\`) before or after this single JSON object.\n4. Ensure all string values within the JSON are properly escaped if they contain special characters (e.g., double quotes within descriptions).\n\nJSON Object Structure and Content Requirements:\n{\n  \"ai_optimized_title\": \"String (max 80 characters): Generate an attention-grabbing, keyword-rich, SEO-optimized product title that is descriptive and persuasive.\",\n  \"ai_optimized_description\": \"String (approx 150-200 words): Generate a detailed, informative, and persuasive product description. Use bullet points (using \\\\n for new lines within the string) for key features/specifications if appropriate. Organize into concise paragraphs. Mention the item's condition. Incorporate relevant keywords naturally. Include a call to action.\",\n  \"ai_seo_keywords\": [\"Array of 5-7 Strings: Generate broad and specific SEO keywords for this product, focusing on key features, brand, and category. Example: 'keyword1', 'keyword2'\"],\n  \"ai_sales_summary\": \"String (2-3 sentences): Generate a concise and persuasive sales summary highlighting key benefits and unique selling points.\"\n}\n\nAdditional Generation Guidelines:\n- Tone and Style: Maintain a friendly and approachable tone.\n- Completeness: Populate all requested JSON fields based on the Product Details.\n- Handling Missing Information: If critical information is missing for a specific field, make a reasonable effort based on what's available or indicate its absence gracefully within the content if appropriate. Do not invent factual specifications if data is missing.\n`;\n\n// Output the prompt for the AI Agent and the original product data\nreturn [{ json: { promptForAI: promptForAI, originalProductData: product } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "fdeeedd3-2b37-4d29-9db1-455b6dc4bb47",
+      "name": "CPI Data instructions"
+    },
+    {
+      "parameters": {
+        "url": "https://n8n.by1.net/webhook/get-single-product-details",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "upc",
+              "value": "={{ $json.upc }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "call-get-product-details-workflow",
+      "name": "Call: Get Product Details Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        240,
+        -100
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node merges the output from 'Call: Get Product Details Workflow' into the main product data.\n// The input to this node is the output of 'Call: Get Product Details Workflow'.\n// We also need the original product data from 'Code: Merge All Data' to ensure all fields are preserved.\n\nconst items = $input.all();\nconst results = [];\n\n// Get the original product data from the 'Code: Merge All Data' node\nconst originalProductDataItems = $items(\"Code: Merge All Data\");\n\nfor (const [index, item] of items.entries()) {\n  const productDetailsResponse = item.json; // This is the response from get-product-details-workflow\n  const originalProductData = originalProductDataItems[index]?.json || {};\n\n  let mergedData = { ...originalProductData };\n\n  if (productDetailsResponse && Array.isArray(productDetailsResponse) && productDetailsResponse.length > 0) {\n    const productFromDB = productDetailsResponse[0];\n    // Merge fields from the database, prioritizing existing enriched data if available\n    // This is a shallow merge, consider deep merge if nested objects need careful handling\n    for (const key in productFromDB) {\n      if (productFromDB.hasOwnProperty(key) && productFromDB[key] !== null && productFromDB[key] !== undefined) {\n        // Only overwrite if the original data doesn't have a value or it's less specific\n        if (!mergedData[key] || (typeof mergedData[key] === 'string' && mergedData[key].trim() === '')) {\n          mergedData[key] = productFromDB[key];\n        }\n      }\n    }\n  } else {\n    console.warn(\"Merge Product Details: No product details found from 'Get Product Details Workflow' for UPC:\", originalProductData.upc);\n  }\n\n  results.push({ json: mergedData });\n}\n\nreturn results;"
+      },
+      "name": "Code: Merge Product Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -100
+      ],
+      "id": "merge-product-details-code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- Code for \"Code: Clean and Prepare AI Output\" ---\nconst items = $input.all();\nconst results = [];\n\n// Get the original product data passed from the prompt generation step\nconst originalDataItems = $items(\"CPI Data instructions\");\n\nfor (const [index, item] of items.entries()) {\n  // The raw text from the LLM (via the Agent with hasOutputParser: false)\n  // is in item.json.output based on your latest test.\n  let llmText = item.json.output; // <<< THIS IS THE KEY CHANGE HERE\n\n  let aiParsedContent = null;\n  let processingError = null;\n\n  const currentOriginalData = originalDataItems[index]?.json?.originalProductData || {};\n\n  if (llmText && typeof llmText === 'string') {\n    // Attempt to extract JSON from ```json ... ``` markdown code block\n    const jsonMatch = llmText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\n    if (jsonMatch && jsonMatch[1]) {\n      llmText = jsonMatch[1].trim();\n    } else {\n      // Fallback for ``` ... ``` (if 'json' language tag is missing)\n      const plainMatch = llmText.match(/```\\s*([\\s\\S]*?)\\s*```/);\n      if (plainMatch && plainMatch[1]) {\n        llmText = plainMatch[1].trim();\n      } else {\n        // If no markdown fences are found, assume the text itself might be the JSON\n        // (or it's just plain text that will fail parsing, which is fine, error will be caught)\n        llmText = llmText.trim();\n      }\n    }\n\n    // console.log(\"Text to be parsed as JSON:\", llmText); // For debugging\n\n    if (llmText) {\n      try {\n        aiParsedContent = JSON.parse(llmText);\n      } catch (e) {\n        processingError = \"Failed to parse cleaned LLM response: \" + e.message;\n        console.error(processingError, \"Cleaned LLM text that failed parsing:\", llmText);\n      }\n    } else {\n        processingError = \"LLM text became empty after attempting to strip markdown.\";\n        console.error(processingError, \"Original text from LLM:\", item.json.output);\n    }\n  } else {\n    processingError = \"No 'output' text found from LLM in CPI Enhancer (Agent) output.\";\n    console.error(processingError, \"Full item from Agent:\", JSON.stringify(item.json, null, 2));\n  }\n\n  // Merge originalProductData with AI content\n  const finalProductData = {\n    ...currentOriginalData,\n    ai_optimized_title: aiParsedContent?.ai_optimized_title || null,\n    ai_optimized_description: aiParsedContent?.ai_optimized_description || null,\n    ai_seo_keywords: aiParsedContent?.ai_seo_keywords || [],\n    ai_sales_summary: aiParsedContent?.ai_sales_summary || null,\n    // Add any other AI fields you expect from your schema\n    // ai_unique_selling_points: aiParsedContent?.ai_unique_selling_points || [],\n    // ai_key_features: aiParsedContent?.ai_key_features || [],\n\n    ai_processing_error: processingError,\n    enrichment_status: aiParsedContent && aiParsedContent.ai_optimized_title && !processingError ? \"enrichment_complete\" : (processingError ? \"enrichment_failed_ai\" : (currentOriginalData.enrichment_status || 'enrichment_failed_ai_unknown_state'))\n  };\n  results.push({ json: finalProductData });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        240
+      ],
+      "id": "b383136c-3191-4df0-ac0e-9b81583434c9",
+      "name": "Code: Clean and Prepare AI Output"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "products",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sale_price": "={{ $json.sale_price != null ? parseFloat($json.sale_price) : null }}",
+            "highest_recorded_price": "={{ $json.upcdb_highestPrice != null ? parseFloat($json.upcdb_highestPrice) : null }}",
+            "height": "={{ $json.height != null ? parseFloat($json.height) : null }}",
+            "sku": "={{ $json.sku ?? null }}",
+            "asin": "={{ $json.am_asin ?? ($json.raw_amazon?.items?.[0]?.asin) ?? null }}",
+            "gtin": "={{ $json.gtin ?? null }}",
+            "ean": "={{ $json.ean ?? $json.am_ean ?? null }}",
+            "epid": "={{ $json.eb_epid ?? null }}",
+            "upc": "={{ $json.upc }}",
+            "code_type": "={{ $json.code_type ?? null }}",
+            "title": "={{ $json.ai_optimized_title || $json.upcdb_title || $json.eb_title || $json.am_title || $json.name || null }}",
+            "brand": "={{ $json.brand || $json.upcdb_brand || $json.am_brand || null }}",
+            "product_type": "={{ $json.product_type ?? null }}",
+            "condition": "={{ $json.condition || $json.eb_condition || null }}",
+            "condition_details": "={{ $json.condition_details ?? null }}",
+            "short_description": "={{ $json.ai_sales_summary || $json.short_description || null }}",
+            "description": "={{ $json.ai_optimized_description || $json.upcdb_description || $json.description || null }}",
+            "long_description": "={{ $json.ai_optimized_description || $json.long_description || $json.upcdb_description || null }}",
+            "unique_selling_points": "={{ ($json.ai_unique_selling_points && Array.isArray($json.ai_unique_selling_points) ? $json.ai_unique_selling_points.join(' | ') : $json.unique_selling_points) ?? null }}",
+            "key_features": "={{ ($json.ai_key_features && Array.isArray($json.ai_key_features) ? $json.ai_key_features.join(' | ') : ($json.am_features && Array.isArray($json.am_features) ? $json.am_features.join(' | ') : $json.key_features)) ?? null }}",
+            "key_benefits": "={{ $json.key_benefits ?? null }}",
+            "price": "={{ $json.price != null ? parseFloat($json.price) : ($json.am_price != null ? parseFloat($json.am_price) : ($json.eb_price != null ? parseFloat($json.eb_price) : ($json.upcdb_lowestPrice != null ? parseFloat($json.upcdb_lowestPrice) : null))) }}",
+            "regular_price": "={{ $json.regular_price != null ? parseFloat($json.regular_price) : null }}",
+            "sale_start_date": "={{ $json.sale_start_date ? new Date($json.sale_start_date).toISOString() : null }}",
+            "sale_end_date": "={{ $json.sale_end_date ? new Date($json.sale_end_date).toISOString() : null }}",
+            "currency": "={{ $json.currency || $json.am_currency || $json.eb_currency || ($json.upcdb_offers && $json.upcdb_offers.length > 0 ? $json.upcdb_offers[0].currency : null) || 'USD' }}",
+            "item_specifics": "={{ $json.ai_item_specifics || $json.item_specifics || null }}",
+            "additional_attributes": "={{ $json.ai_additional_attributes || $json.additional_attributes || null }}",
+            "image_urls": "={{ { \"urls\": $json.all_collected_image_urls || [] } }}",
+            "main_image_url": "={{ $json.main_image_url || $json.upcdb_imageUrl || $json.am_imageUrl || $json.eb_imageUrl || null }}",
+            "lowest_recorded_price": "={{ $json.upcdb_lowestPrice != null ? parseFloat($json.upcdb_lowestPrice) : null }}",
+            "tags": "={{ ($json.ai_seo_keywords && Array.isArray($json.ai_seo_keywords) && $json.ai_seo_keywords.length > 0 ? $json.ai_seo_keywords.join(', ') : $json.tags) ?? null }}",
+            "weight": "={{ $json.weight_value != null ? parseFloat($json.weight_value) : ($json.weight ? parseFloat(String($json.weight).replace(/[^\\\\d.-]/g, '')) : null) }}",
+            "length": "={{ $json.length != null ? parseFloat($json.length) : null }}",
+            "weight_unit": "={{ $json.weight_unit != null ? parseFloat($json.length) : null }}",
+            "width": "={{ $json.width != null ? parseFloat($json.width) : null }}",
+            "dimensions_unit": "={{ $json.dimensions_unit ?? null }}",
+            "ebay_category": "={{ $json.eb_categoryName ?? null }}",
+            "ebay_category_id": "={{ $json.eb_categoryId ?? null }}",
+            "google_category_id": "={{ $json.google_category_id ?? null }}",
+            "google_category": "={{ $json.google_category ?? null }}",
+            "amazon_data": "={{ $json.raw_amazon ?? $json.amazon_data ?? null }}",
+            "visibility": "={{ $json.visibility ?? null }}",
+            "position": "={{ $json.position != null ? parseInt($json.position, 10) : null }}",
+            "enrichment_status": "={{ $json.enrichment_status ?? null }}",
+            "notes": "={{ $json.notes ?? null }}",
+            "care_instructions": "={{ $json.care_instructions ?? null }}",
+            "authentication": "={{ $json.authentication ?? null }}",
+            "history_provenance": "={{ $json.history_provenance ?? null }}",
+            "dimensions_text": "={{ $json.dimensions_text ?? $json.dimension ?? null }}",
+            "amazon_category_browse_node_id": "={{ $json.am_browse_node_id ?? ($json.raw_amazon?.items?.[0]?.browse_node_info?.browse_nodes?.[0]?.id) ?? null }}",
+            "upcdb_category": "={{ $json.upcdb_category ?? null }}",
+            "ai_optimized_title": "={{ $json.ai_optimized_title ?? null }}",
+            "ai_optimized_description": "={{ $json.ai_optimized_description ?? null }}",
+            "ai_seo_keywords": "={{ $json.ai_seo_keywords && Array.isArray($json.ai_seo_keywords) && $json.ai_seo_keywords.length > 0 ? $json.ai_seo_keywords : null }}",
+            "ai_sales_summary": "={{ $json.ai_sales_summary ?? null }}",
+            "ai_unique_selling_points": "={{ $json.ai_unique_selling_points && Array.isArray($json.ai_unique_selling_points) && $json.ai_unique_selling_points.length > 0 ? $json.ai_unique_selling_points : null }}",
+            "ai_key_features": "={{ $json.ai_key_features && Array.isArray($json.ai_key_features) && $json.ai_key_features.length > 0 ? $json.ai_key_features : ($json.am_features && Array.isArray($json.am_features) ? $json.am_features : null) }}",
+            "ai_specifications": "={{ $json.ai_specifications ?? null }}",
+            "raw_amazon_payload": "={{ $json.raw_amazon ?? null }}",
+            "raw_ebay_payload": "={{ $json.raw_ebay ?? null }}",
+            "raw_upcitemdb_payload": "={{ $json.raw_upcitemdb ?? null }}",
+            "ai_processing_error": "={{ $json.ai_processing_error ?? null }}",
+            "last_api_error_source": "={{ $json.last_api_error_source ?? null }}",
+            "last_api_error_message": "={{ $json.last_api_error_message ?? null }}",
+            "last_enriched_at": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "upc"
+          ]
+        },
+        "options": {}
+      },
+      "id": "0471179a-67f8-4edf-98e4-355a669a2ce5",
+      "name": "Update Product data-original",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        160,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ROCom75uM2IZ3Ca9",
+          "name": "dbaimagic Lightsail"
+        }
+      }
     }
   ],
-  "connections": {},
-  "createdAt": "2025-05-24T00:00:00.000Z",
-  "updatedAt": "2025-05-24T00:00:00.000Z",
-  "settings": {
-    "saveManualExecutions": true,
-    "callerPolicy": "workflowsFromSameOwner"
+  "connections": {
+    "Webhook (POST /enrich-product)": {
+      "main": [
+        [
+          {
+            "node": "Extract Essential Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Call: eBay Browse API": {
+      "main": [
+        [
+          {
+            "node": "Set: Store eBay Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Call: UPCitemdb": {
+      "main": [
+        [
+          {
+            "node": "Set: Store UPCitemdb Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Store UPCitemdb Output": {
+      "main": [
+        [
+          {
+            "node": "Code: Merge All Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Merge All Data": {
+      "main": [
+        [
+          {
+            "node": "Call: Get Product Details Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Amazon API Command": {
+      "main": [
+        [
+          {
+            "node": "Execute Amazon SP-API Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Amazon SP-API Script": {
+      "main": [
+        [
+          {
+            "node": "Parse Amazon Script Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Amazon Script Output": {
+      "main": [
+        [
+          {
+            "node": "Set: Clean Amazon Output (and pass amazonData)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Clean Amazon Output (and pass amazonData)": {
+      "main": [
+        [
+          {
+            "node": "API Call: eBay Browse API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set: Store eBay Output": {
+      "main": [
+        [
+          {
+            "node": "API Call: UPCitemdb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Essential Data": {
+      "main": [
+        [
+          {
+            "node": "Build Amazon API Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CPI Enhancer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "CPI Enhancer",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CPI Enhancer": {
+      "main": [
+        [
+          {
+            "node": "Code: Clean and Prepare AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CPI Data instructions": {
+      "main": [
+        [
+          {
+            "node": "CPI Enhancer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Clean and Prepare AI Output": {
+      "main": [
+        [
+          {
+            "node": "Update Product data-original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "staticData": {},
-  "tags": ["baselinker", "product-enrichment"],
-  "triggerCount": 0,
-  "versionId": "1"
+  "pinData": {},
+  "meta": {
+    "instanceId": "a181be3f065802d782c0729f9e34f8ee1309d903960f13dd48b78423e9bd19e1"
+  }
 }

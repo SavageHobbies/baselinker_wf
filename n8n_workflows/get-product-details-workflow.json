@@ -18,9 +18,53 @@
       ],
       "id": "get-product-webhook",
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": "public",
+        "table": "products",
+        "filters": {
+          "filters": [
+            {
+              "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+              "column": "upc",
+              "operator": "equal",
+              "value": "={{ $json.query.upc }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "postgres-get-product-by-upc",
+      "name": "Postgres: Get Product by UPC",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -800,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ROCom75uM2IZ3Ca9",
+          "name": "dbaimagic Lightsail"
+        }
+      }
     }
   ],
-  "connections": {},
+  "connections": {
+    "Webhook (GET /get-single-product-details)": {
+      "main": [
+        [
+          {
+            "node": "Postgres: Get Product by UPC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "createdAt": "2025-05-24T00:00:00.000Z",
   "updatedAt": "2025-05-24T00:00:00.000Z",
   "settings": {

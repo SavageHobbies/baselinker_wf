@@ -254,16 +254,60 @@
         }
 
         function populateForm(data) {
+            // Populate standard form fields
             formFieldIds.forEach(id => {
                 if (formElements[id]) {
-                    if (id.startsWith('ai_') && Array.isArray(data[id])) {
-                        const separator = (id === 'ai_seo_keywords') ? ', ' : ' | ';
-                        formElements[id].value = data[id].join(separator);
+                    if ((id.startsWith('ai_') && id.endsWith('_keywords')) || id.endsWith('_points') || id.endsWith('_features')) {
+                        if(Array.isArray(data[id])) {
+                           const separator = (id === 'ai_seo_keywords') ? ', ' : ' | ';
+                           formElements[id].value = data[id].join(separator);
+                        } else {
+                           formElements[id].value = data[id] || '';
+                        }
                     } else {
                         formElements[id].value = data[id] || '';
                     }
                 }
             });
+
+            // --- NEW: Image Gallery Population ---
+            const imageGallery = document.getElementById('imageGallery');
+            const mainProductImage = document.getElementById('mainProductImage');
+            const imageCounterBadge = document.getElementById('imageCounterBadge');
+            imageGallery.innerHTML = ''; // Clear previous images
+
+            let imageUrls = [];
+            // Check for the new JSON structure: { "urls": [...] }
+            if (data.image_urls && Array.isArray(data.image_urls.urls)) {
+                imageUrls = data.image_urls.urls;
+            }
+
+            if (imageUrls.length > 0) {
+                mainProductImage.src = imageUrls[0]; // Set the first image as the main one
+                imageCounterBadge.textContent = imageUrls.length;
+                imageCounterBadge.classList.remove('hidden');
+
+                imageUrls.forEach(url => {
+                    const thumbContainer = document.createElement('div');
+                    thumbContainer.className = 'selected-thumbnail-item cursor-pointer p-1 border-2 border-transparent hover:border-indigo-500 rounded-lg';
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.alt = 'Product Thumbnail';
+                    img.className = 'w-full h-auto rounded-md object-cover';
+                    
+                    // Add click event to change the main image
+                    img.addEventListener('click', () => {
+                        mainProductImage.src = url;
+                    });
+                    
+                    thumbContainer.appendChild(img);
+                    imageGallery.appendChild(thumbContainer);
+                });
+            } else {
+                // Fallback if no images are found
+                mainProductImage.src = 'https://via.placeholder.com/300x200.png?text=No+Image';
+                imageCounterBadge.classList.add('hidden');
+            }
         }
 
         // --- SAVE CHANGES TO N8N (YOUR ORIGINAL FUNCTION) ---

@@ -18,9 +18,88 @@
       ],
       "id": "save-images-webhook",
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.imageUrl }}",
+        "fileName": "={{ $json.upc + '_' + $json.index + '.jpg' }}",
+        "fileExtension": "jpg",
+        "options": {}
+      },
+      "id": "download-images",
+      "name": "Download Images",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -800,
+        520
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "your-http-basic-auth-credential-id",
+          "name": "Your HTTP Basic Auth Credential Name"
+        }
+      },
+      "binaryData": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": "public",
+        "table": "products",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "image_urls": "={{ { \"urls\": $json.image_urls || [] } }}",
+            "main_image_url": "={{ $json.main_image_url || null }}"
+          },
+          "matchingColumns": [
+            "upc"
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-product-images-in-db",
+      "name": "Update Product Images in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -500,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "ROCom75uM2IZ3Ca9",
+          "name": "dbaimagic Lightsail"
+        }
+      }
     }
   ],
-  "connections": {},
+  "connections": {
+    "Webhook (POST /product-images)": {
+      "main": [
+        [
+          {
+            "node": "Download Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Images": {
+      "main": [
+        [
+          {
+            "node": "Update Product Images in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "createdAt": "2025-05-24T00:00:00.000Z",
   "updatedAt": "2025-05-24T00:00:00.000Z",
   "settings": {
