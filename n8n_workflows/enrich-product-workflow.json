@@ -3,20 +3,21 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "scan-upc",
+        "path": "enrich-product",
         "options": {
           "responseData": ""
         }
       },
-      "name": "Webhook (POST /scan-upc)",
+      "name": "Webhook (POST /enrich-product)",
       "type": "n8n-nodes-base.webhook",
       "position": [
-        -660,
-        -100
+        -1100,
+        520
       ],
-      "id": "202a95c1-e49d-45f6-9f93-77f6511267ee",
+      "id": "f8180b37-b75c-4eef-9e7b-3b8ab628691f",
       "typeVersion": 2,
-      "webhookId": "5b299e27-bf6e-482b-aff1-7ec65caa7ec7"
+      "webhookId": "5b299e27-bf6e-482b-aff1-7ec65caa7ec7",
+      "disabled": true
     },
     {
       "parameters": {
@@ -45,13 +46,13 @@
           "timeout": 15000
         }
       },
-      "id": "597cca52-1303-46af-a9ca-6341f9a69f7a",
+      "id": "e02cbf11-efeb-444a-a257-b3d8b347a229",
       "name": "API Call: eBay Browse API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        700,
-        -220
+        260,
+        400
       ],
       "credentials": {
         "oAuth2Api": {
@@ -85,13 +86,13 @@
           "timeout": 15000
         }
       },
-      "id": "ece646e9-a5f7-4be0-9b4a-4729684035d7",
+      "id": "d3c26abd-05fe-440e-95a3-d2d013d6b9f3",
       "name": "API Call: UPCitemdb",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        -180,
-        0
+        -620,
+        620
       ],
       "onError": "continueRegularOutput"
     },
@@ -142,23 +143,23 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        40,
-        0
+        -400,
+        620
       ],
-      "id": "2f199443-62ff-4b70-b241-e9e45e97296b",
+      "id": "8b76acf7-fce9-4419-9bb9-d70d607fc31f",
       "name": "Set: Store UPCitemdb Output"
     },
     {
       "parameters": {
-        "jsCode": "let productData = {\n  id: null,\n  upc: null,\n  name: null,\n\n  am_title: null,\n  am_brand: null,\n  am_price: null,\n  am_currency: null,\n  am_imageUrl: null,\n  am_features: [],\n  am_error: null,\n  raw_amazon: null,\n\n  eb_title: null,\n  eb_price: null,\n  eb_currency: null,\n  eb_imageUrl: null,\n  eb_condition: null,\n  eb_epid: null,\n  eb_watchCount: null,\n  eb_sellerUsername: null,\n  eb_itemLocation: null,\n  eb_error: null,\n  raw_ebay: null,\n\n  upcdb_title: null,\n  upcdb_brand: null,\n  upcdb_description: null,\n  upcdb_imageUrl: null,\n  upcdb_offers: [],\n  upcdb_lowestPrice: null,\n  upcdb_highestPrice: null,\n  upcdb_offerCount: 0,\n  upcdb_error: null,\n  raw_upcitemdb: null,\n\n  all_collected_image_urls: [],\n\n  ai_optimized_title: null,\n  ai_optimized_description: null,\n  ai_seo_keywords: [],\n  ai_sales_summary: null,\n\n  enrichment_status: 'pending_processing',\n  last_api_error_source: null,\n  last_api_error_message: null\n};\n\nconst incomingItem = $input.item;\n\nif (!incomingItem || typeof incomingItem.json === 'undefined') {\n  console.error(\"Code: Merge All Data - No valid JSON payload in the incoming item.\");\n  productData.enrichment_status = 'error_no_input_to_merge_node';\n  return [{ json: productData }];\n}\n\nconst allData = incomingItem.json;\n\nproductData.id = allData.id || null;\nproductData.upc = allData.upc || null;\nproductData.name = allData.name || allData[\"name \"] || null;\n\n// --- Process Amazon Data ---\nif (allData.amazonData) {\n  let amazonSourceData;\n  if (typeof allData.amazonData === 'string') {\n    try {\n      amazonSourceData = JSON.parse(allData.amazonData);\n      productData.raw_amazon = allData.amazonData;\n    } catch (e) {\n      console.error(\"Failed to parse amazonData string: \", e);\n      productData.am_error = \"Failed to parse raw Amazon data\";\n      amazonSourceData = { error: true, message: productData.am_error };\n    }\n  } else {\n    amazonSourceData = allData.amazonData;\n    productData.raw_amazon = JSON.stringify(allData.amazonData);\n  }\n\n  if (amazonSourceData.error || (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) ) {\n    let errorMsg = 'Unknown Amazon API error';\n    if (amazonSourceData.error && amazonSourceData.message) { \n        errorMsg = typeof amazonSourceData.message === 'string' ? amazonSourceData.message : JSON.stringify(amazonSourceData.message);\n    } else if (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) {\n        errorMsg = amazonSourceData.items[0].message || JSON.stringify(amazonSourceData.items[0].error);\n    }\n    productData.am_error = errorMsg;\n    productData.last_api_error_source = productData.last_api_error_source || 'amazon';\n    productData.last_api_error_message = productData.last_api_error_message || productData.am_error;\n  } else if (amazonSourceData.items && amazonSourceData.items.length > 0) {\n    const amItem = amazonSourceData.items[0];\n    productData.am_title = amItem.attributes?.item_name?.[0]?.value || null;\n    productData.am_brand = amItem.attributes?.brand?.[0]?.value || null;\n    if (amItem.attributes?.list_price?.[0]) {\n        productData.am_price = parseFloat(amItem.attributes.list_price[0].value);\n        productData.am_currency = amItem.attributes.list_price[0].currency;\n    } else if (amItem.attributes?.item_price?.[0]) { \n        productData.am_price = parseFloat(amItem.attributes.item_price[0].value);\n        productData.am_currency = amItem.attributes.item_price[0].currency;\n    }\n    productData.am_imageUrl = amItem.images?.[0]?.images?.[0]?.link || null;\n    productData.am_features = amItem.attributes?.bullet_point?.map(bp => bp.value) || [];\n  } else if (amazonSourceData.skipped) { \n    productData.am_error = `Skipped: ${amazonSourceData.reason || 'Unknown reason'}`;\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'amazonData' property not found.\");\n}\n\n// --- Process eBay Data ---\nif (allData.ebay_api_output) { \n  let ebaySourceData;\n  if (typeof allData.ebay_api_output === 'string') {\n    try {\n      ebaySourceData = JSON.parse(allData.ebay_api_output);\n      productData.raw_ebay = allData.ebay_api_output;\n    } catch (e) {\n      console.error(\"Failed to parse ebay_api_output string: \", e);\n      productData.eb_error = \"Failed to parse raw eBay data\";\n      ebaySourceData = { errors: [{ message: productData.eb_error }] };\n    }\n  } else {\n    ebaySourceData = allData.ebay_api_output;\n    productData.raw_ebay = JSON.stringify(allData.ebay_api_output);\n  }\n\n  if (ebaySourceData.errors && ebaySourceData.errors.length > 0) { \n    productData.eb_error = ebaySourceData.errors[0]?.message || 'Unknown eBay API error';\n    productData.last_api_error_source = productData.last_api_error_source || 'ebay';\n    productData.last_api_error_message = productData.last_api_error_message || productData.eb_error;\n  } else if (ebaySourceData.itemSummaries && ebaySourceData.itemSummaries.length > 0) {\n    const ebItem = ebaySourceData.itemSummaries[0]; \n    productData.eb_title = ebItem.title || null;\n    if (ebItem.price) {\n        productData.eb_price = parseFloat(ebItem.price.value);\n        productData.eb_currency = ebItem.price.currency;\n    }\n    productData.eb_imageUrl = ebItem.image?.imageUrl || null;\n    productData.eb_condition = ebItem.condition || null;\n    productData.eb_epid = ebItem.epid || null;\n    productData.eb_watchCount = ebItem.watchCount ? parseInt(ebItem.watchCount, 10) : 0;\n    productData.eb_sellerUsername = ebItem.seller?.username || null;\n    if (ebItem.itemLocation) {\n        productData.eb_itemLocation = `${ebItem.itemLocation.city || ''} ${ebItem.itemLocation.stateOrProvince || ''} ${ebItem.itemLocation.country || ''}`.trim() || null;\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'ebay_api_output' property not found.\");\n}\n\n// --- Process UPCitemdb Data ---\nif (allData.upcitemdb_api_output) {\n  const upcDbSourceData = allData.upcitemdb_api_output;\n  productData.raw_upcitemdb = JSON.stringify(upcDbSourceData);\n\n  if (upcDbSourceData.code && upcDbSourceData.code.toUpperCase() !== 'OK') {\n    productData.upcdb_error = upcDbSourceData.message || `UPCitemdb API error code: ${upcDbSourceData.code}`;\n    productData.last_api_error_source = productData.last_api_error_source || 'upcitemdb';\n    productData.last_api_error_message = productData.last_api_error_message || productData.upcdb_error;\n  } else if (upcDbSourceData.items && upcDbSourceData.items.length > 0) {\n    const upcDbItem = upcDbSourceData.items[0]; \n    productData.upcdb_title = upcDbItem.title || null;\n    productData.upcdb_brand = upcDbItem.brand || null;\n    productData.upcdb_description = upcDbItem.description || null;\n    productData.upcdb_imageUrl = upcDbItem.images?.[0] || null; \n\n    if (upcDbItem.offers && upcDbItem.offers.length > 0) {\n      productData.upcdb_offerCount = upcDbItem.offers.length;\n      productData.upcdb_offers = upcDbItem.offers.map(offer => ({\n        merchant: offer.merchant, \n        domain: offer.domain, \n        title: offer.title, \n        currency: offer.currency,\n        list_price: offer.list_price ? parseFloat(offer.list_price) : null,\n        price: offer.price ? parseFloat(offer.price) : null,\n        shipping: offer.shipping, \n        condition: offer.condition, \n        updated_t: offer.updated_t\n      }));\n      const prices = upcDbItem.offers\n        .map(o => o.price ? parseFloat(o.price) : null) \n        .filter(p => p !== null && !isNaN(p));\n      if (prices.length > 0) {\n        productData.upcdb_lowestPrice = Math.min(...prices);\n        productData.upcdb_highestPrice = Math.max(...prices);\n      }\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'upcitemdb_api_output' property not found.\");\n}\n\n// --- NEW: Image Aggregation ---\nlet amazonImageUrls = [];\nif (productData.raw_amazon) {\n    let amData;\n    try {\n        amData = (typeof productData.raw_amazon === 'string') ? JSON.parse(productData.raw_amazon) : productData.raw_amazon;\n        if (amData && amData.items && amData.items[0] && Array.isArray(amData.items[0].all_image_links)) {\n            amazonImageUrls = amData.items[0].all_image_links.filter(url => typeof url === 'string' && url.trim() !== '');\n        } else if (productData.am_imageUrl) {\n            amazonImageUrls.push(productData.am_imageUrl);\n        }\n    } catch (e) {\n        console.error(\"Error processing Amazon image data:\", e);\n        if (productData.am_imageUrl) amazonImageUrls.push(productData.am_imageUrl);\n    }\n} else if (productData.am_imageUrl) {\n    amazonImageUrls.push(productData.am_imageUrl);\n}\n\nlet ebayImageUrls = [];\nif (productData.raw_ebay) {\n    let ebData;\n    try {\n        ebData = (typeof productData.raw_ebay === 'string') ? JSON.parse(productData.raw_ebay) : productData.raw_ebay;\n        if (ebData && ebData.itemSummaries && ebData.itemSummaries[0]) {\n            const ebItem = ebData.itemSummaries[0];\n            if (ebItem.additionalImages && Array.isArray(ebItem.additionalImages)) {\n                ebayImageUrls = ebItem.additionalImages.map(img => img.imageUrl).filter(url => typeof url === 'string' && url.trim() !== '');\n            }\n            if (ebItem.image && ebItem.image.imageUrl && !ebayImageUrls.includes(ebItem.image.imageUrl)) {\n                ebayImageUrls.unshift(ebItem.image.imageUrl); // Add primary image to the front\n            }\n        }\n    } catch (e) {\n        console.error(\"Error processing eBay image data:\", e);\n    }\n} else if (productData.eb_imageUrl) {\n    ebayImageUrls.push(productData.eb_imageUrl);\n}\n\nlet allCollectedImageUrls = [];\nif (productData.upcdb_imageUrl && typeof productData.upcdb_imageUrl === 'string' && productData.upcdb_imageUrl.trim() !== '') {\n    allCollectedImageUrls.push(productData.upcdb_imageUrl);\n}\nallCollectedImageUrls = allCollectedImageUrls.concat(amazonImageUrls, ebayImageUrls);\nproductData.all_collected_image_urls = [...new Set(allCollectedImageUrls.filter(Boolean))];\n\n\n// --- Set Final Enrichment Status ---\nif (!productData.id && !productData.upc) {\n  productData.enrichment_status = 'error_missing_identifier';\n} else if (productData.am_error || productData.eb_error || productData.upcdb_error) {\n  if (productData.am_error && productData.last_api_error_source === 'amazon') {\n    productData.enrichment_status = `data_merged_with_errors_api_amazon`;\n  } else if (productData.eb_error && productData.last_api_error_source === 'ebay') {\n    productData.enrichment_status = `data_merged_with_errors_api_ebay`;\n  } else if (productData.upcdb_error && productData.last_api_error_source === 'upcitemdb') {\n    productData.enrichment_status = `data_merged_with_errors_api_upcitemdb`;\n  } else { \n      productData.enrichment_status = `data_merged_with_errors_api_${productData.last_api_error_source || 'unknown'}`;\n  }\n} else {\n  productData.enrichment_status = 'data_merged_pending_ai';\n}\n\n\nreturn [{ json: productData }];"
+        "jsCode": "// --- 1. Initialize Comprehensive Product Data Structure ---\n// ... (no changes here) ...\nlet productData = {\n  id: null,\n  upc: null,\n  name: null,\n\n  am_title: null,\n  am_brand: null,\n  am_price: null,\n  am_currency: null,\n  am_imageUrl: null,\n  am_features: [],\n  am_error: null,\n  raw_amazon: null,\n\n  eb_title: null,\n  eb_price: null,\n  eb_currency: null,\n  eb_imageUrl: null,\n  eb_condition: null,\n  eb_epid: null,\n  eb_watchCount: null,\n  eb_sellerUsername: null,\n  eb_itemLocation: null,\n  eb_error: null,\n  raw_ebay: null,\n\n  upcdb_title: null,\n  upcdb_brand: null,\n  upcdb_description: null,\n  upcdb_imageUrl: null,\n  upcdb_offers: [],\n  upcdb_lowestPrice: null,\n  upcdb_highestPrice: null,\n  upcdb_offerCount: 0,\n  upcdb_error: null,\n  raw_upcitemdb: null,\n\n  ai_optimized_title: null, // To be filled by AI node\n  ai_optimized_description: null, // To be filled by AI node\n  ai_seo_keywords: [], // To be filled by AI node\n  ai_sales_summary: null, // To be filled by AI node\n\n  enrichment_status: 'pending_processing',\n  last_api_error_source: null,\n  last_api_error_message: null\n};\n\n// --- 2. Process the Single Incoming Item ---\nconst incomingItem = $input.item;\n// console.log(\"Full incomingItem: \" + JSON.stringify(incomingItem, null, 2)); \n\nif (!incomingItem || typeof incomingItem.json === 'undefined') {\n  console.error(\"Code: Merge All Data - No valid JSON payload in the incoming item.\");\n  productData.enrichment_status = 'error_no_input_to_merge_node';\n  return [{ json: productData }];\n}\n\nconst allData = incomingItem.json;\n// console.log(\"allData (incomingItem.json): \" + JSON.stringify(allData, null, 2));\n\nproductData.id = allData.id || null;\nproductData.upc = allData.upc || null;\nproductData.name = allData.name || allData[\"name \"] || null;\n\n\n// --- Process Amazon Data ---\nif (allData.amazonData) {\n  let amazonSourceData;\n  if (typeof allData.amazonData === 'string') {\n    try {\n      amazonSourceData = JSON.parse(allData.amazonData);\n      productData.raw_amazon = allData.amazonData; // Store the original string\n    } catch (e) {\n      console.error(\"Failed to parse amazonData string: \", e);\n      productData.am_error = \"Failed to parse raw Amazon data\";\n      amazonSourceData = { error: true, message: productData.am_error }; // Create an error object\n    }\n  } else {\n    amazonSourceData = allData.amazonData; // It's already an object\n    productData.raw_amazon = JSON.stringify(allData.amazonData);\n  }\n\n  if (amazonSourceData.error || (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) ) {\n    let errorMsg = 'Unknown Amazon API error';\n    if (amazonSourceData.error && amazonSourceData.message) { \n        errorMsg = typeof amazonSourceData.message === 'string' ? amazonSourceData.message : JSON.stringify(amazonSourceData.message);\n    } else if (amazonSourceData.items && amazonSourceData.items.length > 0 && amazonSourceData.items[0] && amazonSourceData.items[0].error) {\n        errorMsg = amazonSourceData.items[0].message || JSON.stringify(amazonSourceData.items[0].error);\n    }\n    productData.am_error = errorMsg;\n    productData.last_api_error_source = productData.last_api_error_source || 'amazon';\n    productData.last_api_error_message = productData.last_api_error_message || productData.am_error;\n  } else if (amazonSourceData.items && amazonSourceData.items.length > 0) {\n    const amItem = amazonSourceData.items[0];\n    productData.am_title = amItem.attributes?.item_name?.[0]?.value || null;\n    productData.am_brand = amItem.attributes?.brand?.[0]?.value || null;\n    if (amItem.attributes?.list_price?.[0]) {\n        productData.am_price = parseFloat(amItem.attributes.list_price[0].value);\n        productData.am_currency = amItem.attributes.list_price[0].currency;\n    } else if (amItem.attributes?.item_price?.[0]) { \n        productData.am_price = parseFloat(amItem.attributes.item_price[0].value);\n        productData.am_currency = amItem.attributes.item_price[0].currency;\n    }\n    productData.am_imageUrl = amItem.images?.[0]?.images?.[0]?.link || null;\n    productData.am_features = amItem.attributes?.bullet_point?.map(bp => bp.value) || [];\n  } else if (amazonSourceData.skipped) { \n    productData.am_error = `Skipped: ${amazonSourceData.reason || 'Unknown reason'}`;\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'amazonData' property not found.\");\n}\n\n// --- Process eBay Data ---\nif (allData.ebay_api_output) { \n  let ebaySourceData;\n  if (typeof allData.ebay_api_output === 'string') {\n    try {\n      ebaySourceData = JSON.parse(allData.ebay_api_output);\n      productData.raw_ebay = allData.ebay_api_output; // Store the original string\n    } catch (e) {\n      console.error(\"Failed to parse ebay_api_output string: \", e);\n      productData.eb_error = \"Failed to parse raw eBay data\";\n      ebaySourceData = { errors: [{ message: productData.eb_error }] }; // Create an error object\n    }\n  } else {\n    ebaySourceData = allData.ebay_api_output; // It's already an object\n    productData.raw_ebay = JSON.stringify(allData.ebay_api_output);\n  }\n\n  if (ebaySourceData.errors && ebaySourceData.errors.length > 0) { \n    productData.eb_error = ebaySourceData.errors[0]?.message || 'Unknown eBay API error';\n    productData.last_api_error_source = productData.last_api_error_source || 'ebay';\n    productData.last_api_error_message = productData.last_api_error_message || productData.eb_error;\n  } else if (ebaySourceData.itemSummaries && ebaySourceData.itemSummaries.length > 0) {\n    const ebItem = ebaySourceData.itemSummaries[0]; \n    productData.eb_title = ebItem.title || null;\n    if (ebItem.price) {\n        productData.eb_price = parseFloat(ebItem.price.value);\n        productData.eb_currency = ebItem.price.currency;\n    }\n    productData.eb_imageUrl = ebItem.image?.imageUrl || null;\n    productData.eb_condition = ebItem.condition || null;\n    productData.eb_epid = ebItem.epid || null;\n    productData.eb_watchCount = ebItem.watchCount ? parseInt(ebItem.watchCount, 10) : 0;\n    productData.eb_sellerUsername = ebItem.seller?.username || null;\n    if (ebItem.itemLocation) {\n        productData.eb_itemLocation = `${ebItem.itemLocation.city || ''} ${ebItem.itemLocation.stateOrProvince || ''} ${ebItem.itemLocation.country || ''}`.trim() || null;\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'ebay_api_output' property not found.\");\n}\n\n// --- Process UPCitemdb Data ---\n// This section seems to be working correctly as upcitemdb_api_output is already an object.\nif (allData.upcitemdb_api_output) {\n  const upcDbSourceData = allData.upcitemdb_api_output; // It's already an object\n  productData.raw_upcitemdb = JSON.stringify(upcDbSourceData);\n\n  if (upcDbSourceData.code && upcDbSourceData.code.toUpperCase() !== 'OK') {\n    productData.upcdb_error = upcDbSourceData.message || `UPCitemdb API error code: ${upcDbSourceData.code}`;\n    productData.last_api_error_source = productData.last_api_error_source || 'upcitemdb';\n    productData.last_api_error_message = productData.last_api_error_message || productData.upcdb_error;\n  } else if (upcDbSourceData.items && upcDbSourceData.items.length > 0) {\n    const upcDbItem = upcDbSourceData.items[0]; \n    productData.upcdb_title = upcDbItem.title || null;\n    productData.upcdb_brand = upcDbItem.brand || null;\n    productData.upcdb_description = upcDbItem.description || null;\n    productData.upcdb_imageUrl = upcDbItem.images?.[0] || null; \n\n    if (upcDbItem.offers && upcDbItem.offers.length > 0) {\n      productData.upcdb_offerCount = upcDbItem.offers.length;\n      productData.upcdb_offers = upcDbItem.offers.map(offer => ({\n        merchant: offer.merchant, \n        domain: offer.domain, \n        title: offer.title, \n        currency: offer.currency,\n        list_price: offer.list_price ? parseFloat(offer.list_price) : null,\n        price: offer.price ? parseFloat(offer.price) : null,\n        shipping: offer.shipping, \n        condition: offer.condition, \n        updated_t: offer.updated_t\n      }));\n      const prices = upcDbItem.offers\n        .map(o => o.price ? parseFloat(o.price) : null) \n        .filter(p => p !== null && !isNaN(p));\n      if (prices.length > 0) {\n        productData.upcdb_lowestPrice = Math.min(...prices);\n        productData.upcdb_highestPrice = Math.max(...prices);\n      }\n    }\n  }\n} else {\n  console.warn(\"Code: Merge All Data - 'upcitemdb_api_output' property not found.\");\n}\n\n// --- 3. Set Final Enrichment Status ---\n// ... (no changes to this section) ...\nif (!productData.id && !productData.upc) {\n  productData.enrichment_status = 'error_missing_identifier';\n} else if (productData.am_error || productData.eb_error || productData.upcdb_error) {\n  if (productData.am_error && productData.last_api_error_source === 'amazon') {\n    productData.enrichment_status = `data_merged_with_errors_api_amazon`;\n  } else if (productData.eb_error && productData.last_api_error_source === 'ebay') {\n    productData.enrichment_status = `data_merged_with_errors_api_ebay`;\n  } else if (productData.upcdb_error && productData.last_api_error_source === 'upcitemdb') {\n    productData.enrichment_status = `data_merged_with_errors_api_upcitemdb`;\n  } else { \n      productData.enrichment_status = `data_merged_with_errors_api_${productData.last_api_error_source || 'unknown'}`;\n  }\n} else {\n  productData.enrichment_status = 'data_merged_pending_ai';\n}\n\n// --- 4. Return Combined Data ---\nreturn [{ json: productData }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        240,
-        0
+        -200,
+        620
       ],
-      "id": "5e04b520-4c28-4988-8fbc-d7d2ec937cc6",
+      "id": "3b0d63c3-6dce-487b-aa2b-b57a45f29caa",
       "name": "Code: Merge All Data"
     },
     {
@@ -169,10 +170,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -180,
-        -220
+        -620,
+        400
       ],
-      "id": "c724c7dc-d5e3-48b8-97d4-2e8a7815b6ec"
+      "id": "1b52d33e-a8b0-4fc9-892d-1a221c402dbc"
     },
     {
       "parameters": {
@@ -182,10 +183,10 @@
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [
-        40,
-        -220
+        -400,
+        400
       ],
-      "id": "b7f49bca-05df-45e5-8ebb-a9754009dce0",
+      "id": "8053978c-b721-4960-afd0-6c82314cf2ea",
       "onError": "continueRegularOutput"
     },
     {
@@ -196,10 +197,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        260,
-        -220
+        -180,
+        400
       ],
-      "id": "d5a35888-a0ed-4ef8-a7de-fc2c94ce7808",
+      "id": "dcd9bd1a-4858-401f-95ad-484179ae64a5",
       "onError": "continueRegularOutput"
     },
     {
@@ -215,10 +216,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        480,
-        -220
+        40,
+        400
       ],
-      "id": "da219d0b-4575-4ada-9842-6574f9b9fd2f",
+      "id": "420846bb-36e8-4baa-a319-eedd472f8ced",
       "name": "Set: Clean Amazon Output (and pass amazonData)"
     },
     {
@@ -262,10 +263,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -400,
-        0
+        -840,
+        620
       ],
-      "id": "7d62bf84-5be7-4e28-b8b0-17038ac2b18b",
+      "id": "619b371d-8579-4e3b-8fcd-d9dff161853c",
       "name": "Set: Store eBay Output"
     },
     {
@@ -275,10 +276,10 @@
       "name": "Extract Essential Data",
       "type": "n8n-nodes-base.code",
       "position": [
-        -400,
-        -220
+        -840,
+        400
       ],
-      "id": "6d5809b5-a4ba-4a5d-8604-b2a711d4bcb1",
+      "id": "cbc9116b-9b11-442d-8dbc-88632eb15461",
       "typeVersion": 2
     },
     {
@@ -289,10 +290,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        -460,
-        400
+        -900,
+        1020
       ],
-      "id": "e01860df-e706-48a2-a66f-e09659290728",
+      "id": "f91e574d-b15a-46a9-b693-9749f22aff3e",
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
@@ -309,10 +310,10 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        -320,
-        420
+        -760,
+        1040
       ],
-      "id": "94fa6947-4f77-4eb9-b3b2-429a17aeb970",
+      "id": "b6e92e41-a21d-4dd7-915f-6ef95adbadac",
       "name": "Simple Memory"
     },
     {
@@ -324,10 +325,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.9,
       "position": [
-        -420,
-        240
+        -860,
+        860
       ],
-      "id": "3a54e41e-fcdd-4597-8fa4-d224e6c0370e",
+      "id": "079c4388-3fc7-438d-ad98-14b73d1a3b79",
       "name": "CPI Enhancer"
     },
     {
@@ -337,50 +338,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
-        0
+        40,
+        620
       ],
-      "id": "fdeeedd3-2b37-4d29-9db1-455b6dc4bb47",
+      "id": "8434f594-c2ba-453c-9c5e-19bb040a832e",
       "name": "CPI Data instructions"
-    },
-    {
-      "parameters": {
-        "url": "https://n8n.by1.net/webhook/get-single-product-details",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "upc",
-              "value": "={{ $json.upc }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 15000
-        }
-      },
-      "id": "call-get-product-details-workflow",
-      "name": "Call: Get Product Details Workflow",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        240,
-        -100
-      ],
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// This node merges the output from 'Call: Get Product Details Workflow' into the main product data.\n// The input to this node is the output of 'Call: Get Product Details Workflow'.\n// We also need the original product data from 'Code: Merge All Data' to ensure all fields are preserved.\n\nconst items = $input.all();\nconst results = [];\n\n// Get the original product data from the 'Code: Merge All Data' node\nconst originalProductDataItems = $items(\"Code: Merge All Data\");\n\nfor (const [index, item] of items.entries()) {\n  const productDetailsResponse = item.json; // This is the response from get-product-details-workflow\n  const originalProductData = originalProductDataItems[index]?.json || {};\n\n  let mergedData = { ...originalProductData };\n\n  if (productDetailsResponse && Array.isArray(productDetailsResponse) && productDetailsResponse.length > 0) {\n    const productFromDB = productDetailsResponse[0];\n    // Merge fields from the database, prioritizing existing enriched data if available\n    // This is a shallow merge, consider deep merge if nested objects need careful handling\n    for (const key in productFromDB) {\n      if (productFromDB.hasOwnProperty(key) && productFromDB[key] !== null && productFromDB[key] !== undefined) {\n        // Only overwrite if the original data doesn't have a value or it's less specific\n        if (!mergedData[key] || (typeof mergedData[key] === 'string' && mergedData[key].trim() === '')) {\n          mergedData[key] = productFromDB[key];\n        }\n      }\n    }\n  } else {\n    console.warn(\"Merge Product Details: No product details found from 'Get Product Details Workflow' for UPC:\", originalProductData.upc);\n  }\n\n  results.push({ json: mergedData });\n}\n\nreturn results;"
-      },
-      "name": "Code: Merge Product Details",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        480,
-        -100
-      ],
-      "id": "merge-product-details-code"
     },
     {
       "parameters": {
@@ -389,10 +351,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -40,
-        240
+        -480,
+        860
       ],
-      "id": "b383136c-3191-4df0-ac0e-9b81583434c9",
+      "id": "bb31add7-65c2-43c4-8163-f45e914a378c",
       "name": "Code: Clean and Prepare AI Output"
     },
     {
@@ -431,7 +393,7 @@
             "currency": "={{ $json.currency || $json.am_currency || $json.eb_currency || ($json.upcdb_offers && $json.upcdb_offers.length > 0 ? $json.upcdb_offers[0].currency : null) || 'USD' }}",
             "item_specifics": "={{ $json.ai_item_specifics || $json.item_specifics || null }}",
             "additional_attributes": "={{ $json.ai_additional_attributes || $json.additional_attributes || null }}",
-            "image_urls": "={{ { \"urls\": $json.all_collected_image_urls || [] } }}",
+            "image_urls": "={{\n  {\n    \"urls\": $json.image_urls_all || \n            ($json.images && Array.isArray($json.images) ? $json.images : Array.from(new Set([$json.upcdb_imageUrl, $json.am_imageUrl, $json.eb_imageUrl].filter(Boolean)))) || \n            []\n  }\n}}",
             "main_image_url": "={{ $json.main_image_url || $json.upcdb_imageUrl || $json.am_imageUrl || $json.eb_imageUrl || null }}",
             "lowest_recorded_price": "={{ $json.upcdb_lowestPrice != null ? parseFloat($json.upcdb_lowestPrice) : null }}",
             "tags": "={{ ($json.ai_seo_keywords && Array.isArray($json.ai_seo_keywords) && $json.ai_seo_keywords.length > 0 ? $json.ai_seo_keywords.join(', ') : $json.tags) ?? null }}",
@@ -472,17 +434,782 @@
           },
           "matchingColumns": [
             "upc"
-          ]
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "sku",
+              "displayName": "sku",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "upc",
+              "displayName": "upc",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "code_type",
+              "displayName": "code_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "last_scanned_at",
+              "displayName": "last_scanned_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "brand",
+              "displayName": "brand",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_type",
+              "displayName": "product_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "condition",
+              "displayName": "condition",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "condition_details",
+              "displayName": "condition_details",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "short_description",
+              "displayName": "short_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "long_description",
+              "displayName": "long_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "unique_selling_points",
+              "displayName": "unique_selling_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "key_features",
+              "displayName": "key_features",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "key_benefits",
+              "displayName": "key_benefits",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "price",
+              "displayName": "price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "regular_price",
+              "displayName": "regular_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sale_price",
+              "displayName": "sale_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sale_start_date",
+              "displayName": "sale_start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sale_end_date",
+              "displayName": "sale_end_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "currency",
+              "displayName": "currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "lowest_recorded_price",
+              "displayName": "lowest_recorded_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "highest_recorded_price",
+              "displayName": "highest_recorded_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "item_specifics",
+              "displayName": "item_specifics",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "additional_attributes",
+              "displayName": "additional_attributes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tags",
+              "displayName": "tags",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "weight",
+              "displayName": "weight",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "weight_unit",
+              "displayName": "weight_unit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "length",
+              "displayName": "length",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "width",
+              "displayName": "width",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "height",
+              "displayName": "height",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "dimensions_unit",
+              "displayName": "dimensions_unit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ebay_category_id",
+              "displayName": "ebay_category_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ebay_category",
+              "displayName": "ebay_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "epid",
+              "displayName": "epid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "google_category_id",
+              "displayName": "google_category_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "google_category",
+              "displayName": "google_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amazon_data",
+              "displayName": "amazon_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "image_urls",
+              "displayName": "image_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "low_stock_amount",
+              "displayName": "low_stock_amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "backorders_allowed",
+              "displayName": "backorders_allowed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sold_individually",
+              "displayName": "sold_individually",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "published",
+              "displayName": "published",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "is_featured",
+              "displayName": "is_featured",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "visibility",
+              "displayName": "visibility",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "allow_reviews",
+              "displayName": "allow_reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "position",
+              "displayName": "position",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "enrichment_status",
+              "displayName": "enrichment_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "care_instructions",
+              "displayName": "care_instructions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "authentication",
+              "displayName": "authentication",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "history_provenance",
+              "displayName": "history_provenance",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ean",
+              "displayName": "ean",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "gtin",
+              "displayName": "gtin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "asin",
+              "displayName": "asin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "dimensions_text",
+              "displayName": "dimensions_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "amazon_category_browse_node_id",
+              "displayName": "amazon_category_browse_node_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "upcdb_category",
+              "displayName": "upcdb_category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "main_image_url",
+              "displayName": "main_image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_optimized_title",
+              "displayName": "ai_optimized_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_optimized_description",
+              "displayName": "ai_optimized_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_seo_keywords",
+              "displayName": "ai_seo_keywords",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_sales_summary",
+              "displayName": "ai_sales_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_unique_selling_points",
+              "displayName": "ai_unique_selling_points",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_key_features",
+              "displayName": "ai_key_features",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_specifications",
+              "displayName": "ai_specifications",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_amazon_payload",
+              "displayName": "raw_amazon_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_ebay_payload",
+              "displayName": "raw_ebay_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "raw_upcitemdb_payload",
+              "displayName": "raw_upcitemdb_payload",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ai_processing_error",
+              "displayName": "ai_processing_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_api_error_source",
+              "displayName": "last_api_error_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_api_error_message",
+              "displayName": "last_api_error_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_enriched_at",
+              "displayName": "last_enriched_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false,
+          "values": []
         },
         "options": {}
       },
-      "id": "0471179a-67f8-4edf-98e4-355a669a2ce5",
+      "id": "3de33425-56ff-4081-9e2e-66010ab4780d",
       "name": "Update Product data-original",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        160,
-        240
+        -280,
+        860
       ],
       "credentials": {
         "postgres": {
@@ -541,7 +1268,7 @@
       "main": [
         [
           {
-            "node": "Call: Get Product Details Workflow",
+            "node": "CPI Data instructions",
             "type": "main",
             "index": 0
           }
@@ -672,6 +1399,7 @@
   },
   "pinData": {},
   "meta": {
+    "templateCredsSetupCompleted": true,
     "instanceId": "a181be3f065802d782c0729f9e34f8ee1309d903960f13dd48b78423e9bd19e1"
   }
 }

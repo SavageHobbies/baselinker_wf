@@ -1,15 +1,24 @@
 <?php
 
 require_once __DIR__ . '/baselinker_api/vendor/autoload.php';
+// Add these lines for dotenv
+if (file_exists(__DIR__ . '/.env')) {
+    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+    $dotenv->load();
+} else {
+    // Fallback or error handling if .env is missing, though for this task we assume it will be present.
+    // For now, let's die if .env is not found, to make it clear.
+    die('.env file not found. Please create one based on .env.example.');
+}
 require_once __DIR__ . '/includes/helpers.php';
 
 // Configuration
-define('DB_HOST', 'ls-e762e8d374f4ba2167eace39cfc7a740a111318f.czs6kg88k6zy.us-east-2.rds.amazonaws.com');
-define('DB_PORT', '5432');
-define('DB_NAME', 'dbaimagic');
-define('DB_USER', 'djhollywood');
-define('DB_PASSWORD', '!Maverick007!');
-define('BASELINKER_API_TOKEN', '8002043-8022066-YE18MFRCWOF6M64RTEOAEEOPYCM4MMYYM5R4X6JP77T6D1YTL4JHF0RJ1DEA6RMH');
+define('DB_HOST', getenv('DB_HOST'));
+define('DB_PORT', getenv('DB_PORT'));
+define('DB_NAME', getenv('DB_NAME'));
+define('DB_USER', getenv('DB_USER'));
+define('DB_PASSWORD', getenv('DB_PASSWORD'));
+define('BASELINKER_API_TOKEN', getenv('BASELINKER_API_TOKEN'));
 define('BASELINKER_INVENTORY_ID', '35120');
 
 use Baselinker\Baselinker;

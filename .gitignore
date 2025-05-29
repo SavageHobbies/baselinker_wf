@@ -1,0 +1,10 @@
+# Environment variables
+.env
+
+# Composer dependencies
+/vendor/
+/baselinker_api/vendor/
+
+# Operating System files
+.DS_Store
+Thumbs.db
