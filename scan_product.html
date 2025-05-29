@@ -123,7 +123,15 @@
                 <div id="descriptionResult" class="mt-3 p-3 bg-purple-50 rounded-md text-purple-800 hidden"></div>
             </div>
         </div>
-
+        <!-- Session Scans Display Area -->
+        <div id="sessionScansDisplay" class="mt-8">
+            <h4 class="text-md font-semibold text-gray-700 mb-2">Current Session Scans:</h4>
+            <div id="sessionScansList" class="max-h-60 overflow-y-auto bg-gray-50 p-3 rounded-md border border-gray-200 text-xs space-y-2">
+                <p id="sessionScansPlaceholder" class="text-center text-gray-400 italic">No products scanned in this session yet.</p>
+                <!-- Scanned items will be dynamically added here -->
+            </div>
+        </div>
+        <!-- End of Session Scans Display Area -->
         <div class="mt-8">
             <h4 class="text-md font-semibold text-gray-700 mb-2">Recent Scans Log:</h4>
             <div id="scanLogArea" class="h-40 overflow-y-auto bg-gray-100 p-3 rounded-md border border-gray-200 text-xs space-y-1">
@@ -135,6 +143,7 @@
     <div id="toast" class="toast"></div>
 
     <script>
+        let sessionScannedProducts = [];
         const upcInput = document.getElementById('upcInput');
         const scanButton = document.getElementById('scanButton');
         const responseArea = document.getElementById('responseArea');
@@ -150,6 +159,9 @@
         const draftDescriptionButton = document.getElementById('draftDescriptionButton');
         const categoryResultDiv = document.getElementById('categoryResult');
         const descriptionResultDiv = document.getElementById('descriptionResult');
+        const sessionScansDisplay = document.getElementById('sessionScansDisplay'); // Might not be directly used, but good to have
+        const sessionScansList = document.getElementById('sessionScansList');
+        const sessionScansPlaceholder = document.getElementById('sessionScansPlaceholder');
 
         let currentProductInfo = null; 
         const MAX_LOG_ENTRIES = 10;
@@ -182,6 +194,47 @@
                 scanLogEntries.pop(); // Remove oldest if log exceeds max size
             }
             renderScanLog();
+        }
+
+        function renderSessionScans() {
+            if (!sessionScansList || !sessionScansPlaceholder) {
+                console.error("Session scan display elements not found!");
+                return;
+            }
+
+            sessionScansList.innerHTML = ''; // Clear previous items
+
+            if (sessionScannedProducts.length === 0) {
+                sessionScansPlaceholder.classList.remove('hidden');
+            } else {
+                sessionScansPlaceholder.classList.add('hidden');
+                
+                // Optional: Create a simple table structure
+                const table = document.createElement('table');
+                table.className = 'min-w-full divide-y divide-gray-200'; // Using Tailwind classes
+                const thead = table.createTHead();
+                thead.innerHTML = `
+                    <tr class="bg-gray-100">
+                        <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UPC</th>
+                        <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                        <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                        <th class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    </tr>
+                `;
+                const tbody = table.createTBody();
+                tbody.className = 'bg-white divide-y divide-gray-200';
+
+                sessionScannedProducts.forEach(product => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td class="px-2 py-1 whitespace-nowrap">${escapeHtml(product.upc)}</td>
+                        <td class="px-2 py-1 whitespace-nowrap truncate max-w-xs" title="${escapeHtml(product.title)}">${escapeHtml(product.title)}</td>
+                        <td class="px-2 py-1 whitespace-nowrap">${escapeHtml(String(product.quantity))}</td>
+                        <td class="px-2 py-1 whitespace-nowrap">${escapeHtml(product.status)}</td>
+                    `;
+                });
+                sessionScansList.appendChild(table);
+            }
         }
 
         function renderScanLog() {
@@ -279,6 +332,23 @@
                         productDetailsHtml += '</ul>';
                         showGeminiFeatures();
                         addScanToLog(upcValue, 'success', product.title || product.upc);
+                        // --- Add to Session Scans ---
+                        const sessionProduct = {
+                            upc: product.upc || upcValue, // Prefer product.upc from DB response
+                            title: product.title || 'N/A',
+                            quantity: product.quantity !== undefined ? product.quantity : 'N/A',
+                            status: product.enrichment_status || 'N/A'
+                        };
+
+                        const existingSessionProductIndex = sessionScannedProducts.findIndex(p => p.upc === sessionProduct.upc);
+                        if (existingSessionProductIndex > -1) {
+                            // Update existing product in session - particularly quantity and status
+                            sessionScannedProducts[existingSessionProductIndex] = sessionProduct;
+                        } else {
+                            sessionScannedProducts.unshift(sessionProduct); // Add new product to the beginning of the array
+                        }
+                        renderSessionScans(); // Call to render the updated session scans list
+                        // --- End of Add to Session Scans ---
                     } else {
                         productDetailsHtml += '<p>Received an unexpected data format from the server.</p>';
                         console.warn('Unexpected success response format:', responseData);
@@ -432,6 +502,7 @@
         }
         
         renderScanLog(); 
+        renderSessionScans();
     </script>
 </body>
 </html>
