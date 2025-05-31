@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Enhanced Product Scanner</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                corePlugins: {
+                    preflight: false,
+                }
+            }
+        </script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+       
+        <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .image-thumbnail-container {
+            transition: all 0.2s ease;
+        }
+        .image-thumbnail-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .image-thumbnail-container.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        .merchant-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .merchant-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        .small-loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tab-active {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .tab-inactive {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+        .pricing-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        .pricing-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .pricing-card:active {
+            transform: translateY(0);
+        }
+        .image-thumbnail {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .image-thumbnail:hover {
+            transform: scale(1.05);
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.success {
+            background-color: #10b981;
+        }
+        .toast.error {
+            background-color: #ef4444;
+        }
+        .toast.warning {
+            background-color: #f59e0b;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-enriched {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status-pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .status-failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        </style>
+    </head>
+    <body class="min-h-screen">
+        <div class="container mx-auto px-4 py-8">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-2">Enhanced Product Scanner</h1>
+                <p class="text-white/80">Scan UPC codes to get comprehensive product information</p>
+            </div>
+
+            <!-- Scanner Section -->
+            <div class="glass-effect rounded-2xl shadow-2xl p-6 mb-8">
+                <div class="flex flex-col md:flex-row gap-4 items-center">
+                    <div class="flex-1">
+                        <label for="upcInput" class="block text-sm font-medium text-gray-700 mb-2">
+                            Enter Product Code (UPC, GTIN, ASIN, FNSKU)
+                        </label>
+                        <input type="text" 
+                               id="upcInput" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                               placeholder="e.g. 123456789012"
+                               maxlength="20">
+                    </div>
+                    <button id="scanBtn" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                        <span>Scan</span>
+                        <div id="scanLoader" class="small-loader hidden"></div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Product Information Section -->
+            <div id="productInfo" class="glass-effect rounded-2xl shadow-2xl p-6 hidden">
+                <!-- Product Header -->
+                <div class="flex flex-col lg:flex-row gap-6 mb-6">
+                    <!-- Main Image -->
+                    <div class="lg:w-1/3">
+                        <div class="relative bg-white rounded-lg border-2 border-gray-200 overflow-hidden">
+                            <img id="mainImage" src="" alt="Product Image" class="w-full h-64 object-cover hidden">
+                            <div id="noImagePlaceholder" class="w-full h-64 flex items-center justify-center bg-gray-100">
+                                <span class="text-gray-400 text-lg">No Image Available</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Product Details -->
+                    <div class="lg:w-2/3">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 id="productTitle" class="text-2xl font-bold text-gray-800 mb-2">Product Title</h2>
+                                <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                                    <span><strong>UPC:</strong> <span id="productUPC">-</span></span>
+                                    <span><strong>Brand:</strong> <span id="productBrand">-</span></span>
+                                    <span><strong>Category:</strong> <span id="productCategory">-</span></span>
+                                </div>
+                            </div>
+                            <button id="pushToBaseLinker" 
+                                    class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 flex items-center gap-2">
+                                <span>Push to BaseLinker</span>
+                                <div id="pushLoader" class="small-loader hidden"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
+                    <button class="tab-button tab-active px-4 py-2 rounded-t-lg font-medium" data-tab="pricing">Pricing</button>
+                    <button class="tab-button tab-inactive px-4 py-2 rounded-t-lg font-medium" data-tab="images">Images</button>
+                    <button class="tab-button tab-inactive px-4 py-2 rounded-t-lg font-medium" data-tab="details">Details</button>
+                    <button class="tab-button tab-inactive px-4 py-2 rounded-t-lg font-medium" data-tab="ai">AI Insights</button>
+                    <button class="tab-button tab-inactive px-4 py-2 rounded-t-lg font-medium" data-tab="history">History</button>
+                </div>
+
+                <!-- Tab Content -->
+                <!-- Pricing Tab -->
+                <div id="pricingTab" class="tab-content">
+                    <!-- Competitor Pricing Analysis -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Competitor Pricing Analysis</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Amazon Card -->
+                            <div class="pricing-card bg-white rounded-lg border border-gray-200 p-6 shadow-sm" onclick="showPricingDetails('amazon')">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold text-gray-800">Amazon</h4>
+                                    <div class="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
+                                        <span class="text-white font-bold text-sm">A</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Price:</span>
+                                        <span id="amazonPrice" class="font-semibold text-green-600">Loading...</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Condition:</span>
+                                        <span id="amazonCondition" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Seller:</span>
+                                        <span id="amazonSeller" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Availability:</span>
+                                        <span id="amazonAvailability" class="text-gray-800">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- eBay Card -->
+                            <div class="pricing-card bg-white rounded-lg border border-gray-200 p-6 shadow-sm" onclick="showPricingDetails('ebay')">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold text-gray-800">eBay</h4>
+                                    <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
+                                        <span class="text-white font-bold text-sm">E</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Price Range:</span>
+                                        <span id="ebayPrice" class="font-semibold text-green-600">Loading...</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Condition:</span>
+                                        <span id="ebayCondition" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Shipping:</span>
+                                        <span id="ebayShipping" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Sold:</span>
+                                        <span id="ebaySold" class="text-gray-800">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- UPCitemdb Card -->
+                            <div class="pricing-card bg-white rounded-lg border border-gray-200 p-6 shadow-sm" onclick="showPricingDetails('upcitemdb')">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold text-gray-800">UPCitemdb</h4>
+                                    <div class="w-8 h-8 bg-purple-600 rounded flex items-center justify-center">
+                                        <span class="text-white font-bold text-sm">U</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Price Range:</span>
+                                        <span id="upcPrice" class="font-semibold text-green-600">Loading...</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">MSRP:</span>
+                                        <span id="msrp" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Offers:</span>
+                                        <span id="upcOffers" class="text-gray-800">-</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Updated:</span>
+                                        <span id="upcUpdated" class="text-gray-800">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price Comparison Chart -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Price Comparison Chart</h3>
+                        <div class="bg-white rounded-lg border border-gray-200 p-6">
+                            <div id="priceChart" class="h-64 flex items-center justify-center text-gray-500">
+                                Price comparison chart will be displayed here
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- All Merchant Pricing -->
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">All Merchant Pricing</h3>
+                        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="merchantPricingTable" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading pricing data...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Images Tab -->
+                <div id="imagesTab" class="tab-content hidden">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Product Images</h3>
+                    <div id="imageGallery" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <!-- Images will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Details Tab -->
+                <div id="detailsTab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Basic Details -->
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">Basic Details</h3>
+                            <div id="basicDetails" class="bg-white rounded-lg border border-gray-200 p-6 space-y-3">
+                                <!-- Details will be populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Technical Details -->
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">Technical Details</h3>
+                            <div id="technicalDetails" class="bg-white rounded-lg border border-gray-200 p-6 space-y-3">
+                                <!-- Technical details will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Description -->
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Product Description</h3>
+                        <div class="bg-white rounded-lg border border-gray-200 p-6">
+                            <p id="productDescription" class="text-gray-700 leading-relaxed">
+                                Product description will be displayed here...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Insights Tab -->
+                <div id="aiTab" class="tab-content hidden">
+                    <div class="space-y-8">
+                        <!-- Category Suggestion -->
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-800">Category Suggestion</h3>
+                                <button id="suggestCategoryBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    Generate Suggestion
+                                </button>
+                            </div>
+                            <div id="categorySuggestion" class="bg-white rounded-lg border border-gray-200 p-6 min-h-[100px]">
+                                <p class="text-gray-500">Click "Generate Suggestion" to get AI-powered category recommendations</p>
+                            </div>
+                        </div>
+
+                        <!-- AI Description -->
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-800">AI-Generated Description</h3>
+                                <button id="generateDescriptionBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    Generate Description
+                                </button>
+                            </div>
+                            <div id="aiDescription" class="bg-white rounded-lg border border-gray-200 p-6 min-h-[150px]">
+                                <p class="text-gray-500">Click "Generate Description" to create an AI-powered product description</p>
+                            </div>
+                        </div>
+
+                        <!-- Listing Optimization -->
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-bold text-gray-800">Listing Optimization</h3>
+                                <button id="optimizeListingBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    Optimize Listing
+                                </button>
+                            </div>
+                            <div id="listingOptimization" class="bg-white rounded-lg border border-gray-200 p-6 min-h-[200px]">
+                                <p class="text-gray-500">Click "Optimize Listing" to get AI recommendations for improving your product listing</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="historyTab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">Scan History & Session Stats</h3>
+                    </div>
+                    
+                    <!-- Session Statistics -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="totalScans">0</div>
+                            <div class="text-sm text-gray-600">Total Scans</div>
+                        </div>
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                            <div class="text-2xl font-bold text-green-600" id="successfulScans">0</div>
+                            <div class="text-sm text-gray-600">Successful</div>
+                        </div>
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                            <div class="text-2xl font-bold text-red-600" id="failedScans">0</div>
+                            <div class="text-sm text-gray-600">Failed</div>
+                        </div>
+                        <div class="bg-white rounded-lg border border-gray-200 p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-600" id="pushedToBaseLinker">0</div>
+                            <div class="text-sm text-gray-600">Pushed to BL</div>
+                        </div>
+                    </div>
+
+                    <!-- Scan History -->
+                    <div>
+                        <h4 class="text-lg font-semibold text-gray-800 mb-4">Recent Scans</h4>
+                        <div id="scanHistory" class="space-y-4 max-h-96 overflow-y-auto">
+                            <p class="text-gray-500 text-center py-8">No scans yet. Start scanning to see your history here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Details Modal -->
+        <div id="pricingDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 hidden">
+            <div class="relative mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 text-center mb-4" id="modalTitle">Pricing Details</h3>
+                    <div class="mt-2 px-2 py-3 max-h-96 overflow-y-auto">
+                        <pre class="text-xs text-gray-700 bg-gray-100 p-3 rounded-md overflow-x-auto text-left whitespace-pre-wrap break-all" id="modalContent">Details will load here...</pre>
+                    </div>
+                    <div class="items-center px-4 py-3 mt-4">
+                        <button id="closeModalButton" class="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="enhanced-scan-interface.js"></script>
+    </body>
+</html>

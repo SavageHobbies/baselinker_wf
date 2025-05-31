@@ -1,0 +1,183 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "scan-upc",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "efeb7ed7-bcaf-47a6-9574-9ab77aba41aa",
+        "name": "Webhook (POST /scan-upc)",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1.1,
+        "position": [
+          -1240,
+          -480
+        ],
+        "webhookId": "YOUR_SCAN_WEBHOOK_ID"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "INSERT INTO products (upc, code_type, quantity, created_at, last_scanned_at, enrichment_status)\nVALUES ($1, $2, 1, NOW(), NOW(), 'scanned')\nON CONFLICT (upc)\nDO UPDATE SET \n  quantity = products.quantity + 1,\n  last_scanned_at = NOW()\nRETURNING *;",
+          "options": {
+            "queryReplacement": "=Item 1: Value = {{$json.validatedCode}}  (for $1 - UPC)\nItem 2: Value = {{$json.codeType}}       (for $2 - code type)"
+          }
+        },
+        "id": "99e59ed7-c477-4f3a-8c44-e085e71c338c",
+        "name": "DB Upsert Quantity",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          -800,
+          -580
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "ROCom75uM2IZ3Ca9",
+            "name": "dbaimagic Lightsail"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "85bae2c7-fdfa-41ac-86a8-65bb6ad30c75",
+        "name": "Respond Success",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -620,
+          -420
+        ],
+        "notes": "Sends a 200 OK response if DB operation succeeds"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { \"error\": \"Processing failed.\", \"details\": $json.errorMessage || 'Unknown error' } }}",
+          "options": {
+            "responseCode": 500
+          }
+        },
+        "id": "fd9c3e70-490f-4649-9260-af5576c2c341",
+        "name": "Respond DB Error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -840,
+          -420
+        ],
+        "executeOnce": true,
+        "notes": "Sends a 500 Internal Server Error if DB fails"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Validate Input Code node\n\n// --- Get Input Data ---\n// Access the incoming request body data provided by the Webhook node\nconst incomingBody = items[0].json.body;\n\n// --- Basic Input Checks ---\n// Ensure the body exists and the 'upc' field is a non-empty string\nif (!incomingBody || typeof incomingBody.upc !== 'string' || incomingBody.upc.trim() === '') {\n  // If checks fail, throw a descriptive error to stop the workflow\n  const receivedData = JSON.stringify(items[0].json); // Log what was received for debugging\n  throw new Error(`INVALID_INPUT: Missing or invalid 'upc' string in request body. Received: ${receivedData}`);\n}\n\n// --- Clean Input ---\n// Trim whitespace from the input code\nconst productCode = incomingBody.upc.trim();\n\n// --- Define Validation Rules (Regular Expressions) ---\n// GTIN (covers UPC-A 12, EAN-13, EAN-8, GTIN-14)\nconst gtinRegex = /^\\d{8}$|^\\d{12}$|^\\d{13}$|^\\d{14}$/;\n// ASIN (Amazon Standard Identification Number or ISBN-10)\n// Starts B + 9 Alphanumeric OR is 10 digits\nconst asinRegex = /^B[A-Z0-9]{9}$|^\\d{10}$/;\n// FNSKU (Amazon FBA - often starts X00...)\n// Starts X00 + 7 Alphanumeric (case-insensitive)\nconst fnskuRegex = /^X00[A-Z0-9]{7}$/i;\n\n// --- Perform Validation ---\nlet isValidFormat = false;\nlet codeType = 'unknown'; // Default type\n\n// Check against known formats in order\nif (gtinRegex.test(productCode)) {\n  isValidFormat = true;\n  // Set specific type - could refine further (e.g., check length for UPC-A vs EAN-13) if needed\n  codeType = 'GTIN/UPC/EAN';\n  console.log(`Input '${productCode}' matches GTIN/UPC/EAN format.`);\n} else if (asinRegex.test(productCode)) {\n  isValidFormat = true;\n  codeType = 'ASIN/ISBN'; // Combine as they share regex part\n  console.log(`Input '${productCode}' matches ASIN/ISBN format.`);\n} else if (fnskuRegex.test(productCode)) {\n    isValidFormat = true;\n    codeType = 'FNSKU';\n    console.log(`Input '${productCode}' matches FNSKU format.`);\n}\n\n// --- Handle Validation Result ---\nif (!isValidFormat) {\n  // If none of the formats matched, throw an error\n  throw new Error(`INVALID_CODE_FORMAT: Input '${productCode}' is not a recognized product code format (UPC, GTIN, EAN, ASIN, FNSKU).`);\n}\n\n// --- Prepare Clean Output Data ---\n// Create a *new* object containing only the essential validated data\n// for the next node (e.g., the Database node).\nconst outputData = {\n  json: { // n8n expects the data payload within a 'json' key\n    validatedCode: productCode, // The cleaned/validated code itself\n    codeType: codeType          // The identified type (e.g., 'GTIN/UPC/EAN', 'ASIN/ISBN', 'FNSKU')\n  }\n};\n\n// --- Return Output ---\n// Return an array containing *only* the new, clean output object.\n// This replaces the large input data from the webhook.\nreturn [outputData];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1020,
+          -480
+        ],
+        "id": "ed2b0653-8f66-4ee7-87aa-1fcf5807ed99",
+        "name": "Validate Code",
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://n8n.by1.net/webhook/enrich-product",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ upc: $('Validate Code').item.json.validatedCode }) }}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          -620,
+          -580
+        ],
+        "id": "3971ef9d-df71-43e4-ac7c-cd6d22eb02b9",
+        "name": "HTTP Request"
+      }
+    ],
+    "connections": {
+      "Webhook (POST /scan-upc)": {
+        "main": [
+          [
+            {
+              "node": "Validate Code",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "DB Upsert Quantity": {
+        "main": [
+          [
+            {
+              "node": "HTTP Request",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Respond Success",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Respond Success": {
+        "main": [
+          []
+        ]
+      },
+      "Validate Code": {
+        "main": [
+          [
+            {
+              "node": "DB Upsert Quantity",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond DB Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP Request": {
+        "main": [
+          []
+        ]
+      }
+    },
+    "pinData": {
+      "DB Upsert Quantity": [
+        {
+          "name": "First item",
+          "code": 1
+        },
+        {
+          "name": "Second item",
+          "code": 2
+        }
+      ]
+    },
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "a181be3f065802d782c0729f9e34f8ee1309d903960f13dd48b78423e9bd19e1"
+    }
+  }
